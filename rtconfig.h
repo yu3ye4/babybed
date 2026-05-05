@@ -90,8 +90,6 @@
 #define RT_USING_SERIAL
 #define RT_USING_SERIAL_V1
 #define RT_SERIAL_RB_BUFSZ 128
-#define RT_USING_I2C
-#define RT_USING_I2C_BITOPS
 #define RT_USING_PIN
 
 /* Using USB */
@@ -234,8 +232,6 @@
 
 /* sensors drivers */
 
-#define PKG_USING_AHT10
-#define PKG_USING_AHT10_LATEST_VERSION
 /* end of sensors drivers */
 
 /* touch drivers */
@@ -323,18 +319,11 @@
 /* Onboard Peripheral Drivers */
 
 #define BSP_USING_USB_TO_UART
-#define BSP_USING_AHT20
-#define PKG_USING_AHT10_SAMPLE
-#define PKG_AHT10_I2C_BUS_NAME "i2c1"
 /* end of Onboard Peripheral Drivers */
 
 /* On-chip Peripheral Drivers */
 
 #define BSP_USING_GPIO
-#define BSP_USING_I2C
-#define BSP_USING_SOFT_I2C1
-#define BSP_SOFT_I2C1_SCL_PIN 25
-#define BSP_SOFT_I2C1_SDA_PIN 107
 #define BSP_USING_UART
 #define BSP_USING_UART2
 #define BSP_USING_UART5

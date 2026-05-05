@@ -4,7 +4,7 @@
 #include "app_task.h"
 #include "app_risk.h"
 #include "app_proto.h"
-#include "sensor_temp_humi.h"
+#include "vision_i2c.h"
 
 #define APP_LED_PIN                  GET_PIN(16, 5)
 
@@ -45,42 +45,70 @@ static rt_uint32_t app_now_ms(void)
     return (rt_uint32_t)((rt_tick_get() * 1000UL) / RT_TICK_PER_SECOND);
 }
 
-
-
-    
-    static void th_env_entry(void *parameter)
+static app_risk_result_t app_risk_fusion_with_vision(app_risk_result_t base_risk,
+                                                    const vision_status_t *vision)
 {
-    float temp = 0.0f;
-    float humi = 0.0f;
+    if (vision == RT_NULL)
+    {
+        return base_risk;
+    }
+
+    if (vision->link != VISION_LINK_ONLINE)
+    {
+        if (base_risk.level < APP_RISK_L2_WARNING)
+        {
+            base_risk.level = APP_RISK_L2_WARNING;
+        }
+
+        if (base_risk.score < 55)
+        {
+            base_risk.score = 55;
+        }
+
+        base_risk.reason = "vision_offline";
+        return base_risk;
+    }
+
+    if (vision->stable_found)
+    {
+        if (base_risk.level < APP_RISK_L1_ATTENTION)
+        {
+            base_risk.level = APP_RISK_L1_ATTENTION;
+        }
+
+        if (base_risk.score < 25)
+        {
+            base_risk.score = 25;
+        }
+
+        base_risk.reason = "face_stable_detected";
+    }
+
+    return base_risk;
+}
+
+static void th_env_entry(void *parameter)
+{
+    rt_int32_t base_temp = 2600;
+    rt_int32_t base_humi = 5200;
     rt_int32_t base_smoke = 25;
     rt_int32_t idx = 0;
     app_env_msg_t msg;
 
     RT_UNUSED(parameter);
 
-    if (sensor_temp_humi_init() != 0)
-    {
-        rt_kprintf("[env] sensor temp humi init failed\r\n");
-    }
-
     while (1)
     {
         msg.env.ts_ms = app_now_ms();
-
-        if (sensor_temp_humi_read(&temp, &humi) == 0)
-        {
-            msg.env.temp_centi_c = (rt_int32_t)(temp * 100);
-            msg.env.humi_centi_pct = (rt_int32_t)(humi * 100);
-        }
-        else
-        {
-            rt_kprintf("[env] read temp humi failed, use default value\r\n");
-
-            msg.env.temp_centi_c = 2600;
-            msg.env.humi_centi_pct = 5200;
-        }
-
+        msg.env.temp_centi_c = base_temp + ((idx % 8) - 4) * 12;
+        msg.env.humi_centi_pct = base_humi + ((idx % 10) - 5) * 30;
         msg.env.smoke_ppm = base_smoke + (idx % 5) * 3;
+
+        /* Inject a periodic abnormal sample to test risk flow */
+        if ((idx % 25) == 0)
+        {
+            msg.env.humi_centi_pct = 8200;
+        }
 
         if (rt_mq_send(g_mq_env, &msg, sizeof(msg)) != RT_EOK)
         {
@@ -91,11 +119,13 @@ static rt_uint32_t app_now_ms(void)
         rt_thread_mdelay(1000);
     }
 }
+
 static void th_fusion_entry(void *parameter)
 {
     app_env_msg_t env_msg;
     app_risk_msg_t risk_msg;
     app_risk_result_t risk;
+    vision_status_t vision_status;
     char frame_text[APP_PROTO_MAX_TEXT_LEN];
     rt_size_t text_len;
 
@@ -109,8 +139,23 @@ static void th_fusion_entry(void *parameter)
         }
 
         risk = app_risk_eval_env(&env_msg.env);
+
+        if (vision_i2c_get_status(&vision_status) == RT_EOK)
+        {
+            risk = app_risk_fusion_with_vision(risk, &vision_status);
+            text_len = app_proto_format_uplink_with_vision(frame_text,
+                                                           sizeof(frame_text),
+                                                           &env_msg.env,
+                                                           &risk,
+                                                           &vision_status);
+        }
+        else
+        {
+            text_len = app_proto_format_uplink(frame_text, sizeof(frame_text), &env_msg.env, &risk);
+        }
+
         risk_msg.risk = risk;
-        text_len = app_proto_format_uplink(frame_text, sizeof(frame_text), &env_msg.env, &risk);
+
         if (text_len > 0)
         {
             rt_kprintf("[uplink] %s\r\n", frame_text);
@@ -220,6 +265,11 @@ rt_err_t app_task_init(void)
         return -RT_ENOMEM;
     }
     rt_thread_startup(th);
+
+    if (vision_i2c_start() != RT_EOK)
+    {
+        rt_kprintf("[task] vision_i2c_start failed\r\n");
+    }
 
     return RT_EOK;
 }
