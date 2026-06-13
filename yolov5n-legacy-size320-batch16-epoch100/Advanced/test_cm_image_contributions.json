@@ -1,0 +1,844 @@
+{
+  "task": "detect",
+  "num_classes": 6,
+  "contributions": {
+    "0_pred_vs_0_true": {
+      "predicted_class": 0,
+      "true_class": 0,
+      "predicted_class_name": "0",
+      "true_class_name": "0",
+      "count": 43,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00017/frame_00017.jpg",
+          "session_id": "eb06c8ba-4de2-462a-bef7-3d6d1cf91028",
+          "session_name": "frame_00017",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00540/frame_00540.jpg",
+          "session_id": "2d17663b-dbc6-4c6f-b50b-6b0b90c50fb6",
+          "session_name": "frame_00540",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00664/frame_00664.jpg",
+          "session_id": "c2f2461c-825e-43c1-87b6-324dea17a253",
+          "session_name": "frame_00664",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00662/frame_00662.jpg",
+          "session_id": "007e2964-a559-4258-b2b2-03a55b1e760d",
+          "session_name": "frame_00662",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00622/frame_00622.jpg",
+          "session_id": "977586db-9cf8-4ba4-8212-dc1c29d4d582",
+          "session_name": "frame_00622",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00122/frame_00122.jpg",
+          "session_id": "dc6b2bd7-0f9c-4895-950f-406579fa7644",
+          "session_name": "frame_00122",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00126/frame_00126.jpg",
+          "session_id": "07aec9d9-9c9f-4c3a-9114-53132319dd31",
+          "session_name": "frame_00126",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00130/frame_00130.jpg",
+          "session_id": "d3d7611e-e13f-4a6f-869b-2a6973ca532d",
+          "session_name": "frame_00130",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00132/frame_00132.jpg",
+          "session_id": "583abab9-ebe4-4bbe-b395-8e6f018b88a2",
+          "session_name": "frame_00132",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00135/frame_00135.jpg",
+          "session_id": "bbe8cf5d-3eb9-4ceb-a4e4-586204fcd2e4",
+          "session_name": "frame_00135",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00119/frame_00119.jpg",
+          "session_id": "9bd8bc58-e8f4-4a9b-8b78-215c48fce0b7",
+          "session_name": "frame_00119",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00148/frame_00148.jpg",
+          "session_id": "e4b90bdd-299d-4af5-a4c1-65712be388fe",
+          "session_name": "frame_00148",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00155/frame_00155.jpg",
+          "session_id": "d25a385c-7d58-4da1-b20b-f85a4198c5e2",
+          "session_name": "frame_00155",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00161/frame_00161.jpg",
+          "session_id": "78e1c34f-6644-44c6-8be9-c5cdfd44e8e7",
+          "session_name": "frame_00161",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00165/frame_00165.jpg",
+          "session_id": "d7ab8bec-14fc-470b-a52a-34f6c14bd3de",
+          "session_name": "frame_00165",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00173/frame_00173.jpg",
+          "session_id": "e7cec6e0-adeb-47b2-9646-2684c4827be3",
+          "session_name": "frame_00173",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00177/frame_00177.jpg",
+          "session_id": "7044a191-594e-468c-ad2f-858a998d98f9",
+          "session_name": "frame_00177",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00182/frame_00182.jpg",
+          "session_id": "26478e07-d8f5-4096-8ed1-4f38a22ef774",
+          "session_name": "frame_00182",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00115/frame_00115.jpg",
+          "session_id": "c857af8b-882f-43e0-b03c-2b748cb2ec1a",
+          "session_name": "frame_00115",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00112/frame_00112.jpg",
+          "session_id": "2b8a248a-b214-4263-9ded-a7fc53bf04d4",
+          "session_name": "frame_00112",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00026/frame_00026.jpg",
+          "session_id": "d2c46501-fea5-4514-a97e-3eec2f434bd0",
+          "session_name": "frame_00026",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00027/frame_00027.jpg",
+          "session_id": "87a2f39b-e533-4a82-801f-f88aa1f98c3f",
+          "session_name": "frame_00027",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00028/frame_00028.jpg",
+          "session_id": "83c5e975-0db4-4584-8e24-455b21d7e158",
+          "session_name": "frame_00028",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00042/frame_00042.jpg",
+          "session_id": "82cf9884-6eb4-400f-bf6a-a62e48cbbdca",
+          "session_name": "frame_00042",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00045/frame_00045.jpg",
+          "session_id": "9707312a-f7d9-444e-8c08-b1ffd951c89d",
+          "session_name": "frame_00045",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00048/frame_00048.jpg",
+          "session_id": "22421598-fcc2-448d-aa99-7af784d4c0da",
+          "session_name": "frame_00048",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00057/frame_00057.jpg",
+          "session_id": "f9a536b6-2849-42e9-8c61-5b50b9964b18",
+          "session_name": "frame_00057",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00068/frame_00068.jpg",
+          "session_id": "e7478509-42d3-4a15-8256-328a1ff37ca5",
+          "session_name": "frame_00068",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00075/frame_00075.jpg",
+          "session_id": "6847fd62-e2f4-4399-842d-7ae7add3f070",
+          "session_name": "frame_00075",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00080/frame_00080.jpg",
+          "session_id": "6e45b746-223e-4d01-ae89-5ef40bfc5731",
+          "session_name": "frame_00080",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00098/frame_00098.jpg",
+          "session_id": "1c569e48-1770-4f25-b435-3ac1a0256bf9",
+          "session_name": "frame_00098",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00108/frame_00108.jpg",
+          "session_id": "28b4ceaa-e5d9-4d73-99c3-9aaac775d954",
+          "session_name": "frame_00108",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00186/frame_00186.jpg",
+          "session_id": "66723986-57e4-4cf9-a809-619e89946e32",
+          "session_name": "frame_00186",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00195/frame_00195.jpg",
+          "session_id": "f74225e0-a2e5-43df-8875-2a9bfafc889d",
+          "session_name": "frame_00195",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00197/frame_00197.jpg",
+          "session_id": "07278ecc-ff0f-4425-beca-fe7997d3487a",
+          "session_name": "frame_00197",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00282/frame_00282.jpg",
+          "session_id": "02932716-bc44-4db3-8537-cc55f59bd981",
+          "session_name": "frame_00282",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00205/frame_00205.jpg",
+          "session_id": "2753a3a1-4015-4e00-92b4-9a6384e85f3c",
+          "session_name": "frame_00205",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00206/frame_00206.jpg",
+          "session_id": "107e2161-0e6d-4dfe-9e12-ed6efee07526",
+          "session_name": "frame_00206",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00209/frame_00209.jpg",
+          "session_id": "99e3e593-749e-49b4-b48b-4a1054c05a96",
+          "session_name": "frame_00209",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00210/frame_00210.jpg",
+          "session_id": "f2964699-64e6-4d8d-9ec9-d50f37f869fa",
+          "session_name": "frame_00210",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00213/frame_00213.jpg",
+          "session_id": "54400c5b-0651-4bc1-9820-660683129f36",
+          "session_name": "frame_00213",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00230/frame_00230.jpg",
+          "session_id": "03f2a7eb-fffc-4891-acfa-234249bb455d",
+          "session_name": "frame_00230",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00258/frame_00258.jpg",
+          "session_id": "d7aaed2f-2741-47b6-b02b-cc0a3bd85f47",
+          "session_name": "frame_00258",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 43
+    },
+    "1_pred_vs_1_true": {
+      "predicted_class": 2,
+      "true_class": 2,
+      "predicted_class_name": "1",
+      "true_class_name": "1",
+      "count": 34,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00449/frame_00449.jpg",
+          "session_id": "7751a9ff-7398-4632-9ccd-c93d1f506871",
+          "session_name": "frame_00449",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00472/frame_00472.jpg",
+          "session_id": "b9046464-e34e-4e63-b92e-65d6ecd12d4d",
+          "session_name": "frame_00472",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00474/frame_00474.jpg",
+          "session_id": "cb383a5c-a0b3-4313-b109-cbea02721c45",
+          "session_name": "frame_00474",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00477/frame_00477.jpg",
+          "session_id": "fc598c39-fecd-4158-b793-963a50937a93",
+          "session_name": "frame_00477",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00482/frame_00482.jpg",
+          "session_id": "17adce92-62cb-4048-a15f-24c6c4a225c2",
+          "session_name": "frame_00482",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00484/frame_00484.jpg",
+          "session_id": "c0144733-a6b6-457d-a912-fa5b59aed77b",
+          "session_name": "frame_00484",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00446/frame_00446.jpg",
+          "session_id": "dbca7f40-f741-4161-b3f4-727494655e1a",
+          "session_name": "frame_00446",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00497/frame_00497.jpg",
+          "session_id": "bb87b3d1-caa0-4526-98a0-580deadddcd2",
+          "session_name": "frame_00497",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00539/frame_00539.jpg",
+          "session_id": "e67cf382-e6c4-41aa-abb9-2d894d739a6a",
+          "session_name": "frame_00539",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00513/frame_00513.jpg",
+          "session_id": "8e43d482-b5f3-41ca-8f7b-4128acbe6579",
+          "session_name": "frame_00513",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00443/frame_00443.jpg",
+          "session_id": "5b842d9c-4eeb-405d-9075-ac1c4a2259da",
+          "session_name": "frame_00443",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00441/frame_00441.jpg",
+          "session_id": "298dd6f9-7dbe-406b-a4ec-1a3977339b8b",
+          "session_name": "frame_00441",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00368/frame_00368.jpg",
+          "session_id": "91acc63d-7367-4020-9fb8-fb71f434f91f",
+          "session_name": "frame_00368",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00372/frame_00372.jpg",
+          "session_id": "53fffb11-a519-4564-8191-f448ef7e8cad",
+          "session_name": "frame_00372",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00378/frame_00378.jpg",
+          "session_id": "991e867a-9e27-40a9-93e5-82573e10f4e6",
+          "session_name": "frame_00378",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00388/frame_00388.jpg",
+          "session_id": "ef66f087-224e-4c85-becb-7bb0563a84c0",
+          "session_name": "frame_00388",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00391/frame_00391.jpg",
+          "session_id": "5fe1252f-5cf5-4626-913c-03f8d8c797d2",
+          "session_name": "frame_00391",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00439/frame_00439.jpg",
+          "session_id": "0cbe7a1c-56b5-4b10-b53a-4be1c1ea86a6",
+          "session_name": "frame_00439",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00440/frame_00440.jpg",
+          "session_id": "6b34fc3c-63b7-4855-a197-f6224d15e71d",
+          "session_name": "frame_00440",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00655/frame_00655.jpg",
+          "session_id": "1cc07add-1d06-44e1-bc7b-d7f04e1dee4e",
+          "session_name": "frame_00655",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00636/frame_00636.jpg",
+          "session_id": "70b169a9-6873-46b8-8bd5-49d87916662f",
+          "session_name": "frame_00636",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00363/frame_00363.jpg",
+          "session_id": "92750e93-0190-42b0-b39c-7d94dda2cce2",
+          "session_name": "frame_00363",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00356/frame_00356.jpg",
+          "session_id": "f1bd9315-8917-4de3-ba01-2b6557f78165",
+          "session_name": "frame_00356",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00349/frame_00349.jpg",
+          "session_id": "2e0f42c5-e3db-46ff-ad60-8cca070b9999",
+          "session_name": "frame_00349",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00143/frame_00143.jpg",
+          "session_id": "e691c0e5-aaaa-41cf-8ae5-68ee025594a5",
+          "session_name": "frame_00143",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00278/frame_00278.jpg",
+          "session_id": "1cd429b4-f321-4fb4-a3e9-24ccba86c951",
+          "session_name": "frame_00278",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00327/frame_00327.jpg",
+          "session_id": "620dc8df-ed14-424e-9faa-ff9e159b2388",
+          "session_name": "frame_00327",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00328/frame_00328.jpg",
+          "session_id": "8d7eec36-3dd8-4ee1-bc10-26ae37bc46c9",
+          "session_name": "frame_00328",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00330/frame_00330.jpg",
+          "session_id": "bb3d1247-1cdc-4805-8d20-dd28e55715a4",
+          "session_name": "frame_00330",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00333/frame_00333.jpg",
+          "session_id": "8a1700ad-c795-4a79-abbd-9e1637c44348",
+          "session_name": "frame_00333",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00336/frame_00336.jpg",
+          "session_id": "a6e9c3d9-bbd1-4907-8456-3d7b63e910d1",
+          "session_name": "frame_00336",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00337/frame_00337.jpg",
+          "session_id": "2d142913-00cc-44dc-abc8-de36a51e26ca",
+          "session_name": "frame_00337",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00322/frame_00322.jpg",
+          "session_id": "4aaa9733-8278-4532-9357-0a531ee70052",
+          "session_name": "frame_00322",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00353/frame_00353.jpg",
+          "session_id": "60bcaa55-ffb5-4223-ad57-f8cdc114486b",
+          "session_name": "frame_00353",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 34
+    },
+    "3_pred_vs_3_true": {
+      "predicted_class": 4,
+      "true_class": 4,
+      "predicted_class_name": "3",
+      "true_class_name": "3",
+      "count": 10,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00533/frame_00533.jpg",
+          "session_id": "5332561c-9eb5-4668-a588-3e39602454f3",
+          "session_name": "frame_00533",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00537/frame_00537.jpg",
+          "session_id": "0635f9a4-1c88-454f-b246-700212b605ee",
+          "session_name": "frame_00537",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00407/frame_00407.jpg",
+          "session_id": "a1ea39eb-4282-48b0-8ec8-78636f333bc2",
+          "session_name": "frame_00407",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00229/frame_00229.jpg",
+          "session_id": "d9a42a57-ba34-420a-b2fd-b15099142754",
+          "session_name": "frame_00229",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00232/frame_00232.jpg",
+          "session_id": "17d30e61-029d-4f47-a3a9-fe2abcad18fd",
+          "session_name": "frame_00232",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00242/frame_00242.jpg",
+          "session_id": "7aabde34-bbed-4676-bafb-f119c0a01597",
+          "session_name": "frame_00242",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00249/frame_00249.jpg",
+          "session_id": "466e1f46-0553-4db6-85fa-fd282d1223f8",
+          "session_name": "frame_00249",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00253/frame_00253.jpg",
+          "session_id": "6f6ac86f-6ffe-45fe-a552-885f184e5347",
+          "session_name": "frame_00253",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00254/frame_00254.jpg",
+          "session_id": "a4ac5c4b-eac8-4f74-9dcd-dae05cba094e",
+          "session_name": "frame_00254",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00256/frame_00256.jpg",
+          "session_id": "a6a220cc-92e7-496b-b884-2da30ee900df",
+          "session_name": "frame_00256",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 10
+    },
+    "0_pred_vs_background_true": {
+      "predicted_class": 0,
+      "true_class": 6,
+      "predicted_class_name": "0",
+      "true_class_name": "background",
+      "count": 1,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00539/frame_00539.jpg",
+          "session_id": "e67cf382-e6c4-41aa-abb9-2d894d739a6a",
+          "session_name": "frame_00539",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 1
+    },
+    "4_pred_vs_4_true": {
+      "predicted_class": 1,
+      "true_class": 1,
+      "predicted_class_name": "4",
+      "true_class_name": "4",
+      "count": 15,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00548/frame_00548.jpg",
+          "session_id": "3c477ac3-1dc9-4b50-ab96-c199d39647e3",
+          "session_name": "frame_00548",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00549/frame_00549.jpg",
+          "session_id": "542463b3-0cea-482d-b5e2-9992cad07474",
+          "session_name": "frame_00549",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00565/frame_00565.jpg",
+          "session_id": "c8eb042b-27a1-47f5-a3d1-763fc22699c7",
+          "session_name": "frame_00565",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00573/frame_00573.jpg",
+          "session_id": "9c6a2715-a209-4c7c-9de3-259718143d60",
+          "session_name": "frame_00573",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00575/frame_00575.jpg",
+          "session_id": "01580957-062f-4f2e-a29f-55602bd8c188",
+          "session_name": "frame_00575",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00675/frame_00675.jpg",
+          "session_id": "b491ee59-2782-4164-9a2a-a1acdb1d988d",
+          "session_name": "frame_00675",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00578/frame_00578.jpg",
+          "session_id": "34149a71-5be0-4591-b319-80545e23b07e",
+          "session_name": "frame_00578",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00579/frame_00579.jpg",
+          "session_id": "c70ce651-b28e-4378-b45f-ececd043d9ee",
+          "session_name": "frame_00579",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00603/frame_00603.jpg",
+          "session_id": "5dbb056d-563e-4416-b02e-8a8d8d79e4e8",
+          "session_name": "frame_00603",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00604/frame_00604.jpg",
+          "session_id": "4f63c38c-9d5d-4276-ae47-89df854e5102",
+          "session_name": "frame_00604",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00608/frame_00608.jpg",
+          "session_id": "f6bb57df-3f61-47d0-a5bb-42ec1ba28d98",
+          "session_name": "frame_00608",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00614/frame_00614.jpg",
+          "session_id": "28ba10d3-511d-4cd7-813f-0538d0a832ed",
+          "session_name": "frame_00614",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00629/frame_00629.jpg",
+          "session_id": "c0837c99-ec4f-4faf-96ac-90599a6ae537",
+          "session_name": "frame_00629",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00630/frame_00630.jpg",
+          "session_id": "87f701b3-cbf1-47d9-979a-91c7ac7eedb9",
+          "session_name": "frame_00630",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00631/frame_00631.jpg",
+          "session_id": "c421f459-364a-43d4-a9c9-3efd0d3da55f",
+          "session_name": "frame_00631",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 15
+    },
+    "0_pred_vs_1_true": {
+      "predicted_class": 0,
+      "true_class": 2,
+      "predicted_class_name": "0",
+      "true_class_name": "1",
+      "count": 2,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00442/frame_00442.jpg",
+          "session_id": "cbe96295-8881-4e28-83be-604e77bf124e",
+          "session_name": "frame_00442",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00091/frame_00091.jpg",
+          "session_id": "38b4c34b-bb02-463a-b79f-5ff95bf4f16a",
+          "session_name": "frame_00091",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 2
+    },
+    "1_pred_vs_background_true": {
+      "predicted_class": 2,
+      "true_class": 6,
+      "predicted_class_name": "1",
+      "true_class_name": "background",
+      "count": 1,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00442/frame_00442.jpg",
+          "session_id": "cbe96295-8881-4e28-83be-604e77bf124e",
+          "session_name": "frame_00442",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 1
+    },
+    "5_pred_vs_5_true": {
+      "predicted_class": 5,
+      "true_class": 5,
+      "predicted_class_name": "5",
+      "true_class_name": "5",
+      "count": 6,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00720/frame_00720.jpg",
+          "session_id": "e33f8234-5953-45bd-90bf-7951dce47093",
+          "session_name": "frame_00720",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00724/frame_00724.jpg",
+          "session_id": "521ae5a2-19ee-462a-a34c-90245b862ca9",
+          "session_name": "frame_00724",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00727/frame_00727.jpg",
+          "session_id": "86da459e-8b37-4888-a2aa-417c133c97db",
+          "session_name": "frame_00727",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00735/frame_00735.jpg",
+          "session_id": "991942bf-1257-4a57-a022-77af39a41def",
+          "session_name": "frame_00735",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00745/frame_00745.jpg",
+          "session_id": "595b1a77-e79b-4555-b92e-906c179a50ec",
+          "session_name": "frame_00745",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00746/frame_00746.jpg",
+          "session_id": "2946348a-fc9a-42d7-aba7-586d4c11dbfd",
+          "session_name": "frame_00746",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 6
+    },
+    "2_pred_vs_0_true": {
+      "predicted_class": 3,
+      "true_class": 0,
+      "predicted_class_name": "2",
+      "true_class_name": "0",
+      "count": 1,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00656/frame_00656.jpg",
+          "session_id": "6ddba28a-899c-44ac-90c6-908c9272302c",
+          "session_name": "frame_00656",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 1
+    },
+    "2_pred_vs_2_true": {
+      "predicted_class": 3,
+      "true_class": 3,
+      "predicted_class_name": "2",
+      "true_class_name": "2",
+      "count": 2,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00651/frame_00651.jpg",
+          "session_id": "20f32dff-5c1c-45ad-983d-db0d11522f3f",
+          "session_name": "frame_00651",
+          "dataset": "test"
+        },
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00649/frame_00649.jpg",
+          "session_id": "1bbb6185-0416-4330-89bd-f35e43bf2a53",
+          "session_name": "frame_00649",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 2
+    },
+    "2_pred_vs_1_true": {
+      "predicted_class": 3,
+      "true_class": 2,
+      "predicted_class_name": "2",
+      "true_class_name": "1",
+      "count": 1,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00616/frame_00616.jpg",
+          "session_id": "3b8deaeb-142f-4cf4-9981-ba51185ca72b",
+          "session_name": "frame_00616",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 1
+    },
+    "1_pred_vs_2_true": {
+      "predicted_class": 2,
+      "true_class": 3,
+      "predicted_class_name": "1",
+      "true_class_name": "2",
+      "count": 1,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00113/frame_00113.jpg",
+          "session_id": "4f534c3a-9283-4796-8feb-49ecb017a912",
+          "session_name": "frame_00113",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 1
+    },
+    "class_6_pred_vs_4_true": {
+      "predicted_class": 6,
+      "true_class": 1,
+      "predicted_class_name": "class_6",
+      "true_class_name": "4",
+      "count": 1,
+      "images": [
+        {
+          "image_path": "/tmp/jobs/cbcb7fe2-659c-11f1-929b-a148eda4b0dd/database/sessions/frame_00062/frame_00062.jpg",
+          "session_id": "95c60cf3-61f7-4b97-8306-ed6379d5f873",
+          "session_name": "frame_00062",
+          "dataset": "test"
+        }
+      ],
+      "unique_image_count": 1
+    }
+  }
+}
