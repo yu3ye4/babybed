@@ -1,0 +1,26 @@
+#ifndef APP_MQTT_H__
+#define APP_MQTT_H__
+
+#include <rtthread.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define APP_MQTT_WIFI_SSID          "HiwonderESP"
+#define APP_MQTT_WIFI_PASS          "hiwonder"
+#define APP_MQTT_BROKER_URI         "tcp://192.168.43.9:1883"
+#define APP_MQTT_DEVICE_ID          "babybed_01"
+
+#define APP_MQTT_TOPIC_TELEMETRY    "babybed/" APP_MQTT_DEVICE_ID "/telemetry"
+#define APP_MQTT_TOPIC_COMMAND      "babybed/" APP_MQTT_DEVICE_ID "/command"
+
+#define APP_MQTT_UPLINK_BUF_SIZE    256
+
+rt_err_t app_mqtt_init(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* APP_MQTT_H__ */

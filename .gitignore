@@ -1,0 +1,26 @@
+# Build outputs
+Debug/
+build/
+Release/
+*.elf
+*.hex
+*.map
+*.o
+*.d
+*.axf
+*.lst
+*.su
+
+# Local caches
+__pycache__/
+.cache/
+.pytest_cache/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+# Keep RT-Thread Studio project metadata and dependency sources tracked:
+# .project, .cproject, .settings/, .config, rtconfig.h, packages/, rt-thread/
