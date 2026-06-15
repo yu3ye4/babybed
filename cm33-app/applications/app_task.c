@@ -7,6 +7,7 @@
 #include "vision_i2c.h"
 #include "app_aht20.h"
 #include "app_ipc.h"
+#include "ai_model.h"
 
 #define APP_LED_PIN                  GET_PIN(16, 5)
 
@@ -258,6 +259,11 @@ rt_err_t app_task_init(void)
     rt_thread_t th;
 
     app_ipc_debug_mark("app_task_init enter", 0x33000100UL);
+    rt_kprintf("[ai] model linked size=%lu input=%ux%ux%u\r\n",
+               (unsigned long)ai_model_get_size(),
+               (unsigned int)AI_MODEL_INPUT_WIDTH,
+               (unsigned int)AI_MODEL_INPUT_HEIGHT,
+               (unsigned int)AI_MODEL_INPUT_CHANNELS);
 
     g_mq_env = rt_mq_create("mq_env", sizeof(app_env_msg_t), APP_ENV_MQ_ITEM_COUNT, RT_IPC_FLAG_FIFO);
     if (g_mq_env == RT_NULL)

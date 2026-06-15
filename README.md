@@ -37,6 +37,23 @@ cm33-app/packages/aht10-latest
 
 The CM33 application wraps the package API in `applications/app_aht20.c`.
 
+## AI Model
+
+The YOLOv5n 320x320 int8 TFLite model is included in:
+
+```text
+cm33-app/models/baby_yolov5n_int8.tflite
+```
+
+For firmware builds, the same model is embedded as a C array in:
+
+```text
+cm33-app/applications/ai_model.c
+cm33-app/applications/ai_model.h
+```
+
+At CM33 startup, the app logs the linked model size and expected input shape. The current firmware exposes the model bytes to application code; a TFLite Micro or other embedded inference runtime still needs to be added before the MCU can run YOLO inference locally.
+
 ## Broker Configuration
 
 The MQTT broker URI is configured in the CM55 project. Change the broker IP to the active WLAN IPv4 address of the PC running Mosquitto.
