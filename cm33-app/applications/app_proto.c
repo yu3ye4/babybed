@@ -6,14 +6,15 @@ rt_size_t app_proto_format_uplink(char *buf,
                                   const app_env_frame_t *env,
                                   const app_risk_result_t *risk)
 {
-    return app_proto_format_uplink_with_vision(buf, buf_size, env, risk, RT_NULL);
+    return app_proto_format_uplink_with_vision(buf, buf_size, env, risk, RT_NULL, APP_AI_MODE_OFF);
 }
 
 rt_size_t app_proto_format_uplink_with_vision(char *buf,
                                               rt_size_t buf_size,
                                               const app_env_frame_t *env,
                                               const app_risk_result_t *risk,
-                                              const vision_status_t *vision)
+                                              const vision_status_t *vision,
+                                              app_ai_mode_t ai_mode)
 {
     rt_int32_t n;
     const char *vision_link_text = "na";
@@ -41,7 +42,7 @@ rt_size_t app_proto_format_uplink_with_vision(char *buf,
     }
 
     n = rt_snprintf(buf, buf_size,
-                    "ts=%lu,temp=%d.%02dC,humi=%d.%02d%%,smoke=%dppm,risk=%d,score=%u,reason=%s,vision=%s,face=%u,face_stable=%u,cx=%u,cy=%u,w=%u,h=%u",
+                    "ts=%lu,temp=%d.%02dC,humi=%d.%02d%%,smoke=%dppm,risk=%d,score=%u,reason=%s,ai_mode=%s,vision=%s,face=%u,face_stable=%u,cx=%u,cy=%u,w=%u,h=%u",
                     (unsigned long)env->ts_ms,
                     env->temp_centi_c / 100, env->temp_centi_c % 100,
                     env->humi_centi_pct / 100, env->humi_centi_pct % 100,
@@ -49,6 +50,7 @@ rt_size_t app_proto_format_uplink_with_vision(char *buf,
                     (int)risk->level,
                     (unsigned int)risk->score,
                     risk->reason,
+                    app_ai_mode_name(ai_mode),
                     vision_link_text,
                     (unsigned int)face,
                     (unsigned int)face_stable,

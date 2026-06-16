@@ -2,6 +2,7 @@
 #include <string.h>
 #include "app_ipc.h"
 #include "app_risk.h"
+#include "app_ai_mode.h"
 #include "shared_data.h"
 
 static shared_data_t *g_shm = RT_NULL;
@@ -13,6 +14,7 @@ rt_err_t app_ipc_init(void)
 
     g_shm = SHARED_DATA_ADDR;
     rt_memset(g_shm, 0, sizeof(shared_data_t));
+    g_shm->cmd_ai_mode = -1;
     rt_memcpy(g_shm->payload, init_msg, sizeof(init_msg) - 1);
     g_shm->data_len = sizeof(init_msg) - 1;
     g_shm->cm33_heartbeat = 0x33000002UL;
@@ -98,5 +100,11 @@ void app_ipc_get_commands(void)
     {
         g_risk_humi_max_centi = val;
         rt_kprintf("[ipc] humi_max updated to %d.%02d%%\r\n", val / 100, val % 100);
+    }
+
+    val = g_shm->cmd_ai_mode;
+    if (val >= 0)
+    {
+        app_ai_mode_set((app_ai_mode_t)val);
     }
 }

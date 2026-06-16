@@ -110,6 +110,27 @@ static void mqtt_command_cb(MQTTClient *c, MessageData *data)
             app_ipc_put_command(kv, val);
         }
     }
+    else if (rt_strncmp(payload, "SET_AI_MODE ", 12) == 0)
+    {
+        const char *mode = payload + 12;
+
+        if (rt_strcmp(mode, "off") == 0 || rt_strcmp(mode, "0") == 0)
+        {
+            app_ipc_put_ai_mode(0);
+        }
+        else if (rt_strcmp(mode, "external") == 0 || rt_strcmp(mode, "vision") == 0 || rt_strcmp(mode, "1") == 0)
+        {
+            app_ipc_put_ai_mode(1);
+        }
+        else if (rt_strcmp(mode, "local") == 0 || rt_strcmp(mode, "ai") == 0 || rt_strcmp(mode, "2") == 0)
+        {
+            app_ipc_put_ai_mode(2);
+        }
+        else
+        {
+            rt_kprintf("[mqtt] unknown ai mode: %s\r\n", mode);
+        }
+    }
 
     rt_free(payload);
 }

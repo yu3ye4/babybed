@@ -54,6 +54,40 @@ cm33-app/applications/ai_model.h
 
 At CM33 startup, the app logs the linked model size and expected input shape. The current firmware exposes the model bytes to application code; a TFLite Micro or other embedded inference runtime still needs to be added before the MCU can run YOLO inference locally.
 
+## AI Mode
+
+CM33 now tracks a runtime AI mode and includes it in each uplink frame as `ai_mode=...`.
+
+Supported modes:
+
+```text
+off       Environment sensors only.
+external  Use the external vision module over I2C for face/baby presence fusion.
+local     Select the embedded YOLO model path. This confirms the model is linked, but does not run inference until a TFLite Micro runtime is added.
+```
+
+Default mode:
+
+```text
+external
+```
+
+From the CM33 shell:
+
+```text
+ai_mode off
+ai_mode external
+ai_mode local
+```
+
+Over MQTT:
+
+```powershell
+mosquitto_pub -h 127.0.0.1 -p 1883 -t "babybed/babybed_01/command" -m "SET_AI_MODE local"
+mosquitto_pub -h 127.0.0.1 -p 1883 -t "babybed/babybed_01/command" -m "SET_AI_MODE external"
+mosquitto_pub -h 127.0.0.1 -p 1883 -t "babybed/babybed_01/command" -m "SET_AI_MODE off"
+```
+
 ## Broker Configuration
 
 The MQTT broker URI is configured in the CM55 project. Change the broker IP to the active WLAN IPv4 address of the PC running Mosquitto.
