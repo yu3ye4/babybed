@@ -16,6 +16,11 @@ __pycache__/
 .cache/
 .pytest_cache/
 
+# Local runtime configuration/data
+.env
+pc_mqtt_console/.env
+pc_mqtt_console/data/
+
 # Editor and OS noise
 .DS_Store
 Thumbs.db

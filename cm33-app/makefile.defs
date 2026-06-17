@@ -1,7 +1,0 @@
-# SMIF driver objects (not in auto-generated subdir.mk)
-OBJS += \
-./libraries/components/mtb-device-support-pse8xxgp/pdl/drivers/source/cy_smif.o \
-./libraries/components/mtb-device-support-pse8xxgp/pdl/drivers/source/cy_smif_hb_flash.o \
-./libraries/components/mtb-device-support-pse8xxgp/pdl/drivers/source/cy_smif_memnum.o \
-./libraries/components/mtb-device-support-pse8xxgp/pdl/drivers/source/cy_smif_memslot.o \
-./libraries/components/mtb-device-support-pse8xxgp/pdl/drivers/source/cy_smif_sfdp.o

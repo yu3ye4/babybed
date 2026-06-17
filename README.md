@@ -1,54 +1,49 @@
-# Babybed Edge
+# BabyBed PSOC Edge Demo
 
-Dual-core RT-Thread project for a babybed safety node on PSOC Edge MCU.
+This repository contains the currently working BabyBed demo for PSOC Edge:
 
-The system is split across CM33 and CM55:
+- `firmware/Edgi_Talk_M33_Blink_LED`: CM33 project used to start/release the CM55 core.
+- `firmware/cm55-integrated`: CM55 project running XiaoZhi, WiFi, WebSocket, MQTT, AHT20 telemetry, baby-cry detection, green LED alert, and soothing music play/pause.
+- `pc_mqtt_console`: PC web console that connects to Mosquitto and displays telemetry/alerts.
 
-- `cm33-secure/`: CM33 Secure boot and handoff project.
-- `cm33-app/`: CM33 Non-Secure application. It reads AHT20, evaluates risk, and writes telemetry to shared memory.
-- `cm55-wifi-mqtt/`: CM55 WiFi/MQTT application. It initializes WHD WiFi, reads CM33 telemetry from shared memory, and publishes MQTT messages.
-
-## Data Flow
+The current validated flow is:
 
 ```text
-CM33_NS sensors/tasks -> shared memory 0x261C0000 -> CM55 WiFi/MQTT -> Mosquitto broker
+BlinkLED CM33 starts CM55
+CM55 connects WiFi and XiaoZhi WebSocket
+CM55 reads AHT20 on i2c1
+CM55 publishes MQTT telemetry to the PC broker
+CM55 detects baby crying, blinks green LED, publishes alert, and plays/pauses music
+PC web console displays telemetry and alerts
 ```
 
-Shared memory address:
+## 1. Prerequisites
 
-```c
-0x261C0000
-```
+- RT-Thread Studio with the PSOC Edge toolchain installed.
+- Mosquitto MQTT broker installed on the PC.
+- Python 3.10+ for the web console.
+- PSOC Edge board connected to the same WiFi network as the PC.
+- The current default WiFi/broker test setup uses the phone hotspot `HiwonderESP` and PC broker IP `192.168.43.9`.
 
-MQTT topics:
+## 2. Start Mosquitto
 
-```text
-babybed/babybed_01/telemetry
-babybed/babybed_01/command
-```
+Make sure Mosquitto listens on all network interfaces, not only `127.0.0.1`.
 
-## AHT20
-
-The AHT20 API used by the CM33 application comes from:
-
-```text
-cm33-app/packages/aht10-latest
-```
-
-The CM33 application wraps the package API in `applications/app_aht20.c`.
-
-## Broker Configuration
-
-The MQTT broker URI is configured in the CM55 project. Change the broker IP to the active WLAN IPv4 address of the PC running Mosquitto.
-
-For Mosquitto on Windows, make sure it listens on all interfaces:
+Example `mosquitto.conf`:
 
 ```conf
 listener 1883 0.0.0.0
 allow_anonymous true
 ```
 
-Check listener:
+Restart Mosquitto as Administrator:
+
+```powershell
+net stop mosquitto
+net start mosquitto
+```
+
+Verify the listener:
 
 ```powershell
 netstat -ano | findstr :1883
@@ -57,51 +52,153 @@ netstat -ano | findstr :1883
 Expected:
 
 ```text
-0.0.0.0:1883 LISTENING
+TCP    0.0.0.0:1883    0.0.0.0:0    LISTENING
 ```
 
-## Bring-Up Order
+## 3. Configure Broker IP
 
-1. Build and flash `cm33-secure`.
-2. Build and flash `cm33-app`.
-3. Build and flash `cm55-wifi-mqtt`.
-4. Verify CM33 telemetry first:
+Check the PC WLAN IPv4 address:
+
+```powershell
+ipconfig
+```
+
+If the PC IP is not `192.168.43.9`, edit:
 
 ```text
-[aht20] package init ok on i2c1 addr=0x38
-[env] sample temp=... humi=...%
-[fusion] recv env ...
-[uplink] ts=...,temp=...,humi=...
+firmware/cm55-integrated/applications/app_mqtt.h
 ```
 
-5. Verify CM55 WiFi/MQTT:
+Update:
+
+```c
+#define APP_MQTT_BROKER_URI "tcp://192.168.43.9:1883"
+```
+
+The firmware publishes to:
+
+```text
+babybed/babybed_01/telemetry
+```
+
+The firmware subscribes to:
+
+```text
+babybed/babybed_01/command
+```
+
+## 4. Start PC Web Console
+
+```powershell
+cd pc_mqtt_console
+python -m pip install -r requirements.txt
+copy .env.example .env
+python -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000
+```
+
+The top-right status should show MQTT connected.
+
+For a raw MQTT check:
+
+```powershell
+mosquitto_sub -h 127.0.0.1 -p 1883 -t "babybed/babybed_01/#" -v
+```
+
+## 5. Build and Flash Firmware
+
+In RT-Thread Studio:
+
+1. Import `firmware/cm55-integrated`.
+2. Build `cm55-integrated`.
+3. Import `firmware/Edgi_Talk_M33_Blink_LED`.
+4. Flash/run `Edgi_Talk_M33_Blink_LED` to start the CM55 firmware.
+
+Use the BlinkLED CM33 project for this demo. Do not use the old `cm33-app` project for the current known-good flow.
+
+## 6. Expected Serial Logs
+
+WiFi and XiaoZhi:
 
 ```text
 WLAN Firmware
 WLAN CLM
 [I/WLAN.dev] wlan init success
-[I/mqtt] MQTT server connect success.
-[mqtt] online, subscriptions ready
+[I/WLAN.lwip] Got IP address
+[I/xz.ws] WebSocket handshake completed
+[I/xz.wakeword] Listening for wake words
 ```
 
-6. Subscribe on the PC:
-
-```powershell
-mosquitto_sub -h 127.0.0.1 -p 1883 -t "babybed/babybed_01/telemetry" -v
-```
-
-## UART Note
-
-The CM33 and CM55 projects both use `uart2` by default. When both cores run, logs can interleave or appear corrupted. For debugging, run one core at a time or route consoles to separate UARTs.
-
-## Debug Notes
-
-Detailed WiFi, SDIO, MQTT, IPC, and AHT20 bring-up notes are in:
+MQTT and AHT20:
 
 ```text
-docs/bringup.md
+[app][aht20] init ok on i2c1 addr=0x38
+[app][mqtt] connected
+[app][mqtt] publish telemetry ok
 ```
 
-## License
+Baby crying alert:
 
-Apache-2.0. See `LICENSE`.
+```text
+*** WAKE WORD DETECTED: crying
+Baby crying detected
+[app][alert] baby crying alert
+[app][alert] baby music play/resume
+[app][mqtt] publish cry alert ok
+[app][alert] baby crying stopped
+[app][alert] baby music pause
+```
+
+## 7. Web Console Results
+
+Normal telemetry payload example:
+
+```text
+temp=28.30,humi=56.79,risk=0,score=0,reason=m55_aht20
+```
+
+Baby crying alert payload example:
+
+```text
+event=baby_crying,temp=28.30,humi=56.79,risk=3,score=90,reason=baby_crying,confidence=0.92,message=婴儿哭了
+```
+
+The web page should update temperature, humidity, risk, and alert history.
+
+## 8. Common Issues
+
+- MQTT not connected on the web page: confirm Mosquitto is running and listening on `0.0.0.0:1883`.
+- Firmware cannot connect to MQTT: confirm `APP_MQTT_BROKER_URI` uses the PC WLAN IPv4 address.
+- PC can access MQTT but board cannot: check Windows Firewall and make sure PC and board are on the same hotspot/network.
+- WiFi works on PC but not on board: check serial logs for `WLAN Firmware`, `WLAN CLM`, and `Got IP address`.
+- `getaddrinfo err: 203 '192.168.x.x'`: numeric broker IP handling is required; this project includes the MQTT pipe fix.
+- Logs are interleaved or garbled: CM33 and CM55 may both use `uart2`; keep the CM33 BlinkLED project quiet and use CM55 logs for this demo.
+- No baby crying alert: confirm wakeword logs show model labels `crying` and `noise`, and keep the microphone listening.
+
+## 9. MQTT Command Test
+
+The board subscribes to:
+
+```text
+babybed/babybed_01/command
+```
+
+Example command:
+
+```powershell
+mosquitto_pub -h 127.0.0.1 -p 1883 -t "babybed/babybed_01/command" -m "SET_THRESH temp_max=37.5"
+```
+
+Supported threshold keys:
+
+```text
+temp_min
+temp_max
+humi_min
+humi_max
+```
