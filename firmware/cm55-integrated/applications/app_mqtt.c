@@ -46,7 +46,6 @@ static rt_bool_t g_mqtt_online = RT_FALSE;
 static rt_bool_t g_mqtt_need_reconnect = RT_FALSE;
 static rt_bool_t g_mqtt_net_ready = RT_FALSE;
 static rt_bool_t g_mqtt_first_telemetry_logged = RT_FALSE;
-static rt_sem_t g_mqtt_net_ready_sem = RT_NULL;
 static int g_mqtt_raw_sock = -1;
 static int g_mqtt_raw_last_error = 0;
 
@@ -61,45 +60,18 @@ static void mqtt_raw_close(void)
     }
 }
 
-static void mqtt_wlan_ready_cb(int event, struct rt_wlan_buff *buff, void *parameter)
-{
-    RT_UNUSED(event);
-    RT_UNUSED(buff);
-    RT_UNUSED(parameter);
-
-    g_mqtt_net_ready = RT_TRUE;
-    if (g_mqtt_net_ready_sem != RT_NULL)
-    {
-        rt_sem_release(g_mqtt_net_ready_sem);
-    }
-
-    APP_LOG("wifi", "got ip");
-}
-
-static void mqtt_wlan_disconnect_cb(int event, struct rt_wlan_buff *buff, void *parameter)
-{
-    RT_UNUSED(event);
-    RT_UNUSED(buff);
-    RT_UNUSED(parameter);
-
-    g_mqtt_net_ready = RT_FALSE;
-    g_mqtt_online = RT_FALSE;
-    g_mqtt_need_reconnect = RT_TRUE;
-    APP_LOG("wifi", "disconnected");
-}
-
 static void mqtt_wait_network_ready(void)
 {
     int wait_count = 0;
 
-    while (!g_mqtt_net_ready && !rt_wlan_is_ready())
+    while (!rt_wlan_is_ready())
     {
         if ((wait_count % APP_MQTT_NET_LOG_INTERVAL) == 0)
         {
             APP_LOG("mqtt", "wait wlan ready");
         }
         wait_count++;
-        rt_sem_take(g_mqtt_net_ready_sem, rt_tick_from_millisecond(APP_MQTT_NET_POLL_MS));
+        rt_thread_mdelay(APP_MQTT_NET_POLL_MS);
     }
 
     g_mqtt_net_ready = RT_TRUE;
@@ -720,33 +692,6 @@ static void th_mqtt_entry(void *parameter)
 rt_err_t app_mqtt_init(void)
 {
     rt_thread_t th;
-    rt_err_t err;
-
-    g_mqtt_net_ready_sem = rt_sem_create("mqtt_net", 0, RT_IPC_FLAG_PRIO);
-    if (g_mqtt_net_ready_sem == RT_NULL)
-    {
-        APP_LOG("mqtt", "create net semaphore failed");
-        return -RT_ENOMEM;
-    }
-
-    err = rt_wlan_register_event_handler(RT_WLAN_EVT_READY, mqtt_wlan_ready_cb, RT_NULL);
-    if (err != RT_EOK)
-    {
-        APP_LOG("mqtt", "register wlan ready event failed: %d", err);
-        rt_sem_delete(g_mqtt_net_ready_sem);
-        g_mqtt_net_ready_sem = RT_NULL;
-        return err;
-    }
-
-    err = rt_wlan_register_event_handler(RT_WLAN_EVT_STA_DISCONNECTED, mqtt_wlan_disconnect_cb, RT_NULL);
-    if (err != RT_EOK)
-    {
-        APP_LOG("mqtt", "register wlan disconnect event failed: %d", err);
-        rt_wlan_unregister_event_handler(RT_WLAN_EVT_READY);
-        rt_sem_delete(g_mqtt_net_ready_sem);
-        g_mqtt_net_ready_sem = RT_NULL;
-        return err;
-    }
 
     g_mqtt_net_ready = rt_wlan_is_ready();
 
@@ -759,10 +704,6 @@ rt_err_t app_mqtt_init(void)
     if (th == RT_NULL)
     {
         APP_LOG("mqtt", "create thread failed");
-        rt_wlan_unregister_event_handler(RT_WLAN_EVT_READY);
-        rt_wlan_unregister_event_handler(RT_WLAN_EVT_STA_DISCONNECTED);
-        rt_sem_delete(g_mqtt_net_ready_sem);
-        g_mqtt_net_ready_sem = RT_NULL;
         return -RT_ENOMEM;
     }
 
