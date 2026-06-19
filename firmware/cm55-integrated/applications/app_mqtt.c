@@ -13,6 +13,7 @@
 #include "app_log.h"
 #include "app_sensor_aht20.h"
 #include "app_alert.h"
+#include "app_breath.h"
 
 #define APP_MQTT_THREAD_STACK_SIZE   4096
 #define APP_MQTT_THREAD_PRIORITY     15
@@ -25,6 +26,8 @@
 #define APP_MQTT_NET_POLL_MS         1000
 #define APP_MQTT_NET_LOG_INTERVAL    30
 #define APP_MQTT_SENSOR_PUBLISH_MS   2000
+#define APP_MQTT_BREATH_PUBLISH_MS   1000
+#define APP_MQTT_BREATH_POINTS       APP_BREATH_SAMPLE_HZ
 #define APP_MQTT_RAW_HOST            "192.168.43.9"
 #define APP_MQTT_RAW_PORT            1883
 #define APP_MQTT_RAW_CLIENT_ID       "babybed_01_telemetry"
@@ -46,6 +49,7 @@ static rt_bool_t g_mqtt_online = RT_FALSE;
 static rt_bool_t g_mqtt_need_reconnect = RT_FALSE;
 static rt_bool_t g_mqtt_net_ready = RT_FALSE;
 static rt_bool_t g_mqtt_first_telemetry_logged = RT_FALSE;
+static rt_bool_t g_mqtt_first_breath_logged = RT_FALSE;
 static int g_mqtt_raw_sock = -1;
 static int g_mqtt_raw_last_error = 0;
 
@@ -116,6 +120,7 @@ static void mqtt_online_cb(MQTTClient *c)
 
     g_mqtt_online = RT_TRUE;
     g_mqtt_first_telemetry_logged = RT_FALSE;
+    g_mqtt_first_breath_logged = RT_FALSE;
     APP_LOG("mqtt", "connected");
 }
 
@@ -528,6 +533,101 @@ static rt_bool_t mqtt_publish_cry_alert(void)
     return RT_TRUE;
 }
 
+static void mqtt_append_breath_stats(char *buf, rt_size_t size)
+{
+    app_breath_stats_t stats;
+    rt_size_t len;
+
+    if (buf == RT_NULL || size == 0)
+    {
+        return;
+    }
+
+    if (app_breath_get_stats(APP_BREATH_DEFAULT_WINDOW, &stats) != RT_EOK)
+    {
+        return;
+    }
+
+    len = rt_strlen(buf);
+    if (len >= size)
+    {
+        return;
+    }
+
+    rt_snprintf(buf + len,
+                size - len,
+                ",breath_base_mv=%d,breath_pp_mv=%d,breath_active=%d",
+                stats.base_mv,
+                stats.pp_mv,
+                stats.active ? 1 : 0);
+}
+
+static void mqtt_publish_breath_waveform(void)
+{
+    rt_int32_t samples[APP_MQTT_BREATH_POINTS];
+    app_breath_stats_t stats;
+    char payload[APP_MQTT_BUF_SIZE];
+    rt_size_t count;
+    rt_size_t pos = 0;
+    rt_size_t i;
+    int ret;
+
+    if (!g_mqtt_online)
+    {
+        return;
+    }
+
+    if (app_breath_get_stats(APP_BREATH_DEFAULT_WINDOW, &stats) != RT_EOK)
+    {
+        return;
+    }
+
+    count = app_breath_copy_recent(samples, APP_MQTT_BREATH_POINTS);
+    if (count == 0)
+    {
+        return;
+    }
+
+    rt_snprintf(payload,
+                sizeof(payload),
+                "{\"type\":\"breath\",\"hz\":%d,\"count\":%u,\"base_mv\":%d,\"min_mv\":%d,\"max_mv\":%d,\"pp_mv\":%d,\"active\":%d,\"samples\":[",
+                APP_BREATH_SAMPLE_HZ,
+                (unsigned int)count,
+                stats.base_mv,
+                stats.min_mv,
+                stats.max_mv,
+                stats.pp_mv,
+                stats.active ? 1 : 0);
+    pos = rt_strlen(payload);
+
+    for (i = 0; i < count && pos + 16 < sizeof(payload); i++)
+    {
+        pos += rt_snprintf(payload + pos,
+                           sizeof(payload) - pos,
+                           "%s%d",
+                           (i == 0) ? "" : ",",
+                           samples[i]);
+    }
+
+    if (pos + 3 >= sizeof(payload))
+    {
+        return;
+    }
+
+    rt_snprintf(payload + pos, sizeof(payload) - pos, "]}");
+
+    ret = mqtt_raw_publish(APP_MQTT_TOPIC_BREATH, payload);
+    if (ret != PAHO_SUCCESS)
+    {
+        APP_LOG("mqtt", "publish breath fail: %d raw=%d", ret, g_mqtt_raw_last_error);
+    }
+    else if (!g_mqtt_first_breath_logged)
+    {
+        g_mqtt_first_breath_logged = RT_TRUE;
+        APP_LOG("mqtt", "publish breath ok");
+    }
+}
+
 static void mqtt_publish_ipc_telemetry(void)
 {
     char uplink_buf[APP_MQTT_UPLINK_BUF_SIZE];
@@ -553,6 +653,7 @@ static void mqtt_publish_ipc_telemetry(void)
                     abs(temp_centi % 100),
                     humi_centi / 100,
                     abs(humi_centi % 100));
+        mqtt_append_breath_stats(uplink_buf, sizeof(uplink_buf));
 
         ret = mqtt_raw_publish(APP_MQTT_TOPIC_TELEMETRY, uplink_buf);
         if (ret != PAHO_SUCCESS)
@@ -569,6 +670,7 @@ static void mqtt_publish_ipc_telemetry(void)
 
     if (app_ipc_read_uplink(uplink_buf, sizeof(uplink_buf)) == RT_EOK)
     {
+        mqtt_append_breath_stats(uplink_buf, sizeof(uplink_buf));
         ret = mqtt_raw_publish(APP_MQTT_TOPIC_TELEMETRY, uplink_buf);
         if (ret != PAHO_SUCCESS)
         {
@@ -622,6 +724,7 @@ static void th_mqtt_entry(void *parameter)
     while (1)
     {
         rt_tick_t last_sensor_publish = 0;
+        rt_tick_t last_breath_publish = 0;
 
         mqtt_wait_network_ready();
         mqtt_wait_xiaozhi_ready();
@@ -659,6 +762,12 @@ static void th_mqtt_entry(void *parameter)
                 continue;
             }
 
+            if ((rt_tick_get() - last_breath_publish) >= rt_tick_from_millisecond(APP_MQTT_BREATH_PUBLISH_MS))
+            {
+                mqtt_publish_breath_waveform();
+                last_breath_publish = rt_tick_get();
+            }
+
             mqtt_publish_ipc_telemetry();
             last_sensor_publish = rt_tick_get();
 #if APP_MQTT_ENABLE_EVENTS
@@ -671,10 +780,28 @@ static void th_mqtt_entry(void *parameter)
                 {
                     break;
                 }
+                if ((rt_tick_get() - last_breath_publish) >= rt_tick_from_millisecond(APP_MQTT_BREATH_PUBLISH_MS))
+                {
+                    mqtt_publish_breath_waveform();
+                    last_breath_publish = rt_tick_get();
+                }
                 mqtt_publish_app_event();
             }
 #else
-            rt_thread_mdelay(APP_MQTT_SENSOR_PUBLISH_MS);
+            while (!g_mqtt_need_reconnect &&
+                   (rt_tick_get() - last_sensor_publish) < rt_tick_from_millisecond(APP_MQTT_SENSOR_PUBLISH_MS))
+            {
+                if (!g_mqtt_online)
+                {
+                    break;
+                }
+                if ((rt_tick_get() - last_breath_publish) >= rt_tick_from_millisecond(APP_MQTT_BREATH_PUBLISH_MS))
+                {
+                    mqtt_publish_breath_waveform();
+                    last_breath_publish = rt_tick_get();
+                }
+                rt_thread_mdelay(APP_MQTT_LOOP_DELAY_MS);
+            }
 #endif
         }
 

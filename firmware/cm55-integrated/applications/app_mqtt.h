@@ -11,6 +11,7 @@ extern "C" {
 #define APP_MQTT_DEVICE_ID          "babybed_01"
 
 #define APP_MQTT_TOPIC_TELEMETRY    "babybed/" APP_MQTT_DEVICE_ID "/telemetry"
+#define APP_MQTT_TOPIC_BREATH       "babybed/" APP_MQTT_DEVICE_ID "/breath"
 #define APP_MQTT_TOPIC_XIAOZHI      "babybed/" APP_MQTT_DEVICE_ID "/xiaozhi"
 #define APP_MQTT_TOPIC_EVENT        "babybed/" APP_MQTT_DEVICE_ID "/event"
 #define APP_MQTT_TOPIC_COMMAND      "babybed/" APP_MQTT_DEVICE_ID "/command"
