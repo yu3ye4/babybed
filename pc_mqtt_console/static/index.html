@@ -166,6 +166,38 @@
       font-size: 12px;
       margin-bottom: 10px;
     }
+    .breath-panel {
+      margin-top: 12px;
+    }
+    .breath-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .breath-metrics {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .breath-metric {
+      min-width: 96px;
+    }
+    .breath-metric strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+    .breath-chart {
+      width: 100%;
+      height: 260px;
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfdff;
+    }
     .risk0 { color: var(--ok); }
     .risk1 { color: var(--warn); }
     .risk2, .risk3 { color: var(--danger); }
@@ -174,6 +206,7 @@
       main { padding: 14px; }
       .grid, .layout { grid-template-columns: 1fr; }
       .metric-value { font-size: 24px; }
+      .breath-chart { height: 220px; }
     }
   </style>
 </head>
@@ -208,6 +241,30 @@
         <div id="vision" class="metric-value">--</div>
         <div id="face" class="metric-sub">face --</div>
       </div>
+    </section>
+
+    <section class="panel breath-panel">
+      <div class="breath-head">
+        <div>
+          <strong data-i18n="breathWaveform">呼吸波形</strong>
+          <div id="breathMeta" class="metric-sub">waiting for breath data</div>
+        </div>
+        <div class="breath-metrics">
+          <div class="breath-metric">
+            <div class="metric-label" data-i18n="breathBase">基线</div>
+            <strong id="breathBase">--</strong>
+          </div>
+          <div class="breath-metric">
+            <div class="metric-label" data-i18n="breathPeak">峰峰值</div>
+            <strong id="breathPp">--</strong>
+          </div>
+          <div class="breath-metric">
+            <div class="metric-label" data-i18n="breathActive">活动</div>
+            <strong id="breathActive">--</strong>
+          </div>
+        </div>
+      </div>
+      <canvas id="breathCanvas" class="breath-chart"></canvas>
     </section>
 
     <section class="layout">
@@ -289,7 +346,11 @@
         noAnalysis: "暂无分析结果",
         summary: "风险摘要",
         causes: "可能原因",
-        actions: "建议操作"
+        actions: "建议操作",
+        breathWaveform: "呼吸波形",
+        breathBase: "基线",
+        breathPeak: "峰峰值",
+        breathActive: "活动"
       },
       en: {
         langButton: "中文",
@@ -319,7 +380,11 @@
         noAnalysis: "No analysis yet",
         summary: "Risk Summary",
         causes: "Likely Causes",
-        actions: "Suggested Actions"
+        actions: "Suggested Actions",
+        breathWaveform: "Breath Waveform",
+        breathBase: "Base",
+        breathPeak: "Peak-to-peak",
+        breathActive: "Active"
       }
     };
     let lang = localStorage.getItem("babybed_lang") || "zh";
@@ -335,6 +400,7 @@
       });
       document.getElementById("langToggle").textContent = t("langButton");
       refresh();
+      refreshBreath();
     }
 
     function toggleLang() {
@@ -357,6 +423,102 @@
       if (n >= 2) return "risk2";
       if (n === 1) return "risk1";
       return "risk0";
+    }
+
+    function drawBreath(points) {
+      const canvas = document.getElementById("breathCanvas");
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(320, Math.floor(rect.width));
+      const height = Math.max(180, Math.floor(rect.height));
+
+      if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+      }
+
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#fbfdff";
+      ctx.fillRect(0, 0, width, height);
+
+      const pad = {left: 48, right: 14, top: 16, bottom: 28};
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+
+      ctx.strokeStyle = "#d7dde5";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (plotH * i / 4);
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+      }
+      ctx.stroke();
+
+      if (!points || points.length < 2) {
+        ctx.fillStyle = "#64748b";
+        ctx.font = "13px Arial";
+        ctx.fillText("waiting for breath data", pad.left, pad.top + 24);
+        return;
+      }
+
+      const values = points.map(p => Number(p.mv)).filter(Number.isFinite);
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      if (min === max) {
+        min -= 1;
+        max += 1;
+      }
+      const margin = Math.max(2, Math.round((max - min) * 0.15));
+      min -= margin;
+      max += margin;
+
+      ctx.fillStyle = "#64748b";
+      ctx.font = "12px Arial";
+      ctx.fillText(`${max} mV`, 6, pad.top + 4);
+      ctx.fillText(`${min} mV`, 6, height - pad.bottom + 4);
+
+      ctx.strokeStyle = "#0f766e";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      points.forEach((point, index) => {
+        const x = pad.left + (plotW * index / (points.length - 1));
+        const y = pad.top + plotH - ((Number(point.mv) - min) * plotH / (max - min));
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = "#64748b";
+      ctx.fillText(`${points.length} pts`, pad.left, height - 8);
+    }
+
+    async function refreshBreath() {
+      try {
+        const body = await fetch("/api/breath?limit=500").then(r => r.json());
+        const latest = body.latest;
+        const points = Array.isArray(body.points) ? body.points : [];
+
+        document.getElementById("breathBase").textContent =
+          latest && latest.base_mv !== null && latest.base_mv !== undefined ? `${latest.base_mv} mV` : "--";
+        document.getElementById("breathPp").textContent =
+          latest && latest.pp_mv !== null && latest.pp_mv !== undefined ? `${latest.pp_mv} mV` : "--";
+        document.getElementById("breathActive").textContent = latest ? (latest.active ? "1" : "0") : "--";
+        document.getElementById("breathActive").className = latest && latest.active ? "risk2" : "risk0";
+        document.getElementById("breathMeta").textContent = latest
+          ? `${points.length} points, ${fmtTime(latest.recv_time)}`
+          : "waiting for breath data";
+
+        drawBreath(points);
+      } catch (err) {
+        document.getElementById("breathMeta").textContent = "breath data unavailable";
+        drawBreath([]);
+      }
     }
 
     function renderAnalysis(analysis) {
@@ -454,6 +616,7 @@
 
     applyLang();
     setInterval(refresh, 2000);
+    setInterval(refreshBreath, 1000);
   </script>
 </body>
 </html>

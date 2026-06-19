@@ -27,6 +27,7 @@ MQTT_HOST = os.getenv("MQTT_HOST", "192.168.43.9")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "pc_babybed_console")
 MQTT_TELEMETRY_TOPIC = os.getenv("MQTT_TELEMETRY_TOPIC", "babybed/babybed_01/telemetry")
+MQTT_BREATH_TOPIC = os.getenv("MQTT_BREATH_TOPIC", "babybed/babybed_01/breath")
 MQTT_COMMAND_TOPIC = os.getenv("MQTT_COMMAND_TOPIC", "babybed/babybed_01/command")
 MQTT_AI_ANALYSIS_TOPIC = os.getenv("MQTT_AI_ANALYSIS_TOPIC", "babybed/babybed_01/ai/analysis")
 MQTT_AI_ALERT_TOPIC = os.getenv("MQTT_AI_ALERT_TOPIC", "babybed/babybed_01/ai/alert")
@@ -40,9 +41,11 @@ app = FastAPI(title="BabyBed MQTT Web Console")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 history: deque[dict[str, Any]] = deque(maxlen=500)
+breath_points: deque[dict[str, Any]] = deque(maxlen=500)
 state_lock = Lock()
 mqtt_connected = False
 mqtt_client: mqtt.Client | None = None
+breath_latest: dict[str, Any] | None = None
 analysis_cache: dict[str, Any] = {
     "mode": "none",
     "text": "暂无分析结果",
@@ -119,6 +122,52 @@ def append_history(record: dict[str, Any]) -> None:
         history.append(record)
     with HISTORY_FILE.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+def append_breath(topic: str, payload: bytes) -> None:
+    global breath_latest
+
+    raw = payload.decode("utf-8", errors="replace")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return
+
+    samples = data.get("samples")
+    if not isinstance(samples, list):
+        return
+
+    hz = int(data.get("hz", 50) or 50)
+    if hz <= 0:
+        hz = 50
+
+    recv_time = time.time()
+    count = len(samples)
+    points: list[dict[str, Any]] = []
+    for index, sample in enumerate(samples):
+        try:
+            mv = int(sample)
+        except (TypeError, ValueError):
+            continue
+        sample_time = recv_time - max(0, count - index - 1) / hz
+        points.append({"time": sample_time, "mv": mv})
+
+    latest = {
+        "recv_time": recv_time,
+        "topic": topic,
+        "raw": raw,
+        "hz": hz,
+        "count": count,
+        "base_mv": data.get("base_mv"),
+        "min_mv": data.get("min_mv"),
+        "max_mv": data.get("max_mv"),
+        "pp_mv": data.get("pp_mv"),
+        "active": bool(data.get("active")),
+    }
+
+    with state_lock:
+        breath_points.extend(points)
+        breath_latest = latest
 
 
 def load_history() -> None:
@@ -361,6 +410,7 @@ def on_connect(client: mqtt.Client, userdata: Any, flags: Any, reason_code: Any,
     global mqtt_connected
     mqtt_connected = True
     client.subscribe(MQTT_TELEMETRY_TOPIC, qos=1)
+    client.subscribe(MQTT_BREATH_TOPIC, qos=1)
 
 
 def on_disconnect(client: mqtt.Client, userdata: Any, flags: Any, reason_code: Any, properties: Any = None) -> None:
@@ -369,6 +419,10 @@ def on_disconnect(client: mqtt.Client, userdata: Any, flags: Any, reason_code: A
 
 
 def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> None:
+    if msg.topic == MQTT_BREATH_TOPIC:
+        append_breath(msg.topic, msg.payload)
+        return
+
     record = normalize_record(msg.topic, msg.payload)
     append_history(record)
 
@@ -413,6 +467,7 @@ async def status() -> dict[str, Any]:
         "mqtt_host": MQTT_HOST,
         "mqtt_port": MQTT_PORT,
         "telemetry_topic": MQTT_TELEMETRY_TOPIC,
+        "breath_topic": MQTT_BREATH_TOPIC,
         "command_topic": MQTT_COMMAND_TOPIC,
         "history_count": count,
         "latest": latest,
@@ -426,6 +481,15 @@ async def get_history(limit: int = 100) -> dict[str, Any]:
     with state_lock:
         records = list(history)[-limit:]
     return {"records": records}
+
+
+@app.get("/api/breath")
+async def get_breath(limit: int = 500) -> dict[str, Any]:
+    limit = max(1, min(limit, 500))
+    with state_lock:
+        points = list(breath_points)[-limit:]
+        latest = breath_latest
+    return {"latest": latest, "points": points}
 
 
 @app.post("/api/command/threshold")
