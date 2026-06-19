@@ -13,7 +13,7 @@ static rt_mutex_t g_breath_lock = RT_NULL;
 static rt_thread_t g_breath_thread = RT_NULL;
 static rt_bool_t g_breath_initialized = RT_FALSE;
 static rt_bool_t g_breath_sampling_online = RT_FALSE;
-static rt_int32_t g_breath_ring[APP_BREATH_RING_SIZE];
+static rt_int32_t *g_breath_ring = RT_NULL;
 static rt_uint16_t g_breath_write_index = 0;
 static rt_uint32_t g_breath_sample_count = 0;
 
@@ -104,6 +104,14 @@ rt_err_t app_breath_init(void)
         return -RT_ENOMEM;
     }
 
+    g_breath_ring = (rt_int32_t *)rt_calloc(APP_BREATH_RING_SIZE, sizeof(rt_int32_t));
+    if (g_breath_ring == RT_NULL)
+    {
+        rt_mutex_delete(g_breath_lock);
+        g_breath_lock = RT_NULL;
+        return -RT_ENOMEM;
+    }
+
     g_breath_thread = rt_thread_create("breath",
                                        breath_thread_entry,
                                        RT_NULL,
@@ -112,7 +120,9 @@ rt_err_t app_breath_init(void)
                                        APP_BREATH_THREAD_TICK);
     if (g_breath_thread == RT_NULL)
     {
+        rt_free(g_breath_ring);
         rt_mutex_delete(g_breath_lock);
+        g_breath_ring = RT_NULL;
         g_breath_lock = RT_NULL;
         return -RT_ENOMEM;
     }
@@ -131,7 +141,7 @@ rt_size_t app_breath_copy_recent(rt_int32_t *mv_buf, rt_size_t max_count)
     rt_size_t start_offset;
     rt_size_t i;
 
-    if (mv_buf == RT_NULL || max_count == 0 || g_breath_lock == RT_NULL)
+    if (mv_buf == RT_NULL || max_count == 0 || g_breath_lock == RT_NULL || g_breath_ring == RT_NULL)
     {
         return 0;
     }
@@ -159,13 +169,13 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     rt_uint16_t oldest;
     rt_size_t start_offset;
     rt_size_t i;
-    long long sum = 0;
+    rt_int32_t sum = 0;
 
     if (stats == RT_NULL)
     {
         return -RT_EINVAL;
     }
-    if (g_breath_lock == RT_NULL)
+    if (g_breath_lock == RT_NULL || g_breath_ring == RT_NULL)
     {
         return -RT_ERROR;
     }
@@ -211,7 +221,7 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     rt_mutex_release(g_breath_lock);
 
     stats->count = count;
-    stats->base_mv = (rt_int32_t)(sum / (long long)count);
+    stats->base_mv = sum / (rt_int32_t)count;
     stats->pp_mv = stats->max_mv - stats->min_mv;
     stats->active = (stats->pp_mv >= APP_BREATH_ACTIVE_PP_MV) ? RT_TRUE : RT_FALSE;
     return RT_EOK;
