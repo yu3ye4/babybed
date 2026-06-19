@@ -16,6 +16,7 @@
 #include "app_event.h"
 #include "app_mqtt.h"
 #include "app_sensor_aht20.h"
+#include "app_ads1115.h"
 #include "app_alert.h"
 
 /*****************************************************************************
@@ -68,6 +69,11 @@ int main(void)
     if (app_sensor_aht20_init() != RT_EOK)
     {
         APP_LOG("boot", "app_sensor_aht20_init failed");
+    }
+
+    if (app_ads1115_init() != RT_EOK)
+    {
+        APP_LOG("boot", "app_ads1115_init failed");
     }
 
     if (app_ipc_init() != RT_EOK)
