@@ -21,11 +21,34 @@
 #define APP_UVC_FRAME_BUF_SIZE   (APP_UVC_MAX_WIDTH * APP_UVC_MAX_HEIGHT * APP_UVC_BYTES_PER_PIXEL)
 #define APP_UVC_FRAME_BUF_COUNT  4U
 #define APP_UVC_SNAP_TIMEOUT_MS  3000U
+#define APP_UVC_WORKER_STACK     8192U
+#define APP_UVC_WORKER_PRIORITY  22U
+#define APP_UVC_WORKER_TICK      10U
+
+typedef struct
+{
+    rt_bool_t valid;
+    rt_uint16_t width;
+    rt_uint16_t height;
+    rt_uint8_t format;
+    rt_uint32_t frame_count;
+    rt_uint32_t drop_count;
+    rt_uint32_t frame_len;
+    rt_uint32_t min_v;
+    rt_uint32_t max_v;
+    rt_uint32_t mean_v;
+    rt_uint32_t nonzero;
+    rt_tick_t tick;
+} app_vision_uvc_stats_t;
 
 static struct usbh_video *g_uvc_video;
 static rt_mutex_t g_uvc_lock;
 static rt_bool_t g_uvc_started;
 static rt_bool_t g_uvc_stream_created;
+static rt_thread_t g_uvc_worker;
+static rt_uint16_t g_uvc_width = APP_UVC_SNAP_WIDTH;
+static rt_uint16_t g_uvc_height = APP_UVC_SNAP_HEIGHT;
+static app_vision_uvc_stats_t g_uvc_stats;
 
 static rt_uint8_t g_uvc_frame_buffer[APP_UVC_FRAME_BUF_COUNT][APP_UVC_FRAME_BUF_SIZE]
     __attribute__((aligned(32), section(".m33_m55_shared_hyperram")));
@@ -41,7 +64,6 @@ void usbh_video_run(struct usbh_video *video_class)
     }
 
     g_uvc_video = video_class;
-    g_uvc_stream_created = RT_FALSE;
 
     if (g_uvc_lock != RT_NULL)
     {
@@ -95,6 +117,36 @@ static const char *app_vision_uvc_format_name(rt_uint8_t format)
     return format == USBH_VIDEO_FORMAT_MJPEG ? "mjpeg" : "uncompressed";
 }
 
+static int app_vision_uvc_parse_options(int argc, char **argv, rt_uint8_t *format, rt_uint16_t *width, rt_uint16_t *height)
+{
+    if (argc >= 2)
+    {
+        *format = (rt_uint8_t)atoi(argv[1]);
+        if (*format != USBH_VIDEO_FORMAT_UNCOMPRESSED && *format != USBH_VIDEO_FORMAT_MJPEG)
+        {
+            rt_kprintf("[app][vision_uvc] invalid format: %u, use 0=uncompressed or 1=mjpeg\r\n", *format);
+            return -RT_EINVAL;
+        }
+    }
+    if (argc >= 4)
+    {
+        *width = (rt_uint16_t)atoi(argv[2]);
+        *height = (rt_uint16_t)atoi(argv[3]);
+    }
+
+    if ((*width == 0U) || (*height == 0U) || ((rt_uint32_t)(*width) * (*height) * APP_UVC_BYTES_PER_PIXEL > APP_UVC_FRAME_BUF_SIZE))
+    {
+        rt_kprintf("[app][vision_uvc] invalid size: %ux%u, max raw buffer is %ux%u\r\n",
+                   *width,
+                   *height,
+                   APP_UVC_MAX_WIDTH,
+                   APP_UVC_MAX_HEIGHT);
+        return -RT_EINVAL;
+    }
+
+    return 0;
+}
+
 static int app_vision_uvc_ensure_stream(void)
 {
     int ret;
@@ -116,7 +168,7 @@ static int app_vision_uvc_ensure_stream(void)
     return 0;
 }
 
-static void app_vision_uvc_print_stats(struct usbh_videoframe *frame, rt_uint16_t width, rt_uint16_t height)
+static void app_vision_uvc_update_stats(struct usbh_videoframe *frame)
 {
     rt_uint8_t min_v = 255;
     rt_uint8_t max_v = 0;
@@ -125,7 +177,6 @@ static void app_vision_uvc_print_stats(struct usbh_videoframe *frame, rt_uint16_
     rt_uint32_t mean = 0;
     rt_uint32_t frame_size = frame->frame_size;
     const rt_uint8_t *buf = frame->frame_buf;
-    const char *format = app_vision_uvc_format_name((rt_uint8_t)frame->frame_format);
 
     for (rt_uint32_t i = 0; i < frame_size; i++)
     {
@@ -151,74 +202,102 @@ static void app_vision_uvc_print_stats(struct usbh_videoframe *frame, rt_uint16_
         mean = (rt_uint32_t)(sum / frame_size);
     }
 
-    rt_kprintf("[app][vision_uvc] width=%u height=%u format=%s frame_len=%u min=%u max=%u mean=%u nonzero=%u\r\n",
-               width,
-               height,
-               format,
-               frame_size,
-               min_v,
-               max_v,
-               mean,
-               nonzero);
-}
-
-static int vision_uvc_info(int argc, char **argv)
-{
     if (g_uvc_lock != RT_NULL)
     {
         rt_mutex_take(g_uvc_lock, RT_WAITING_FOREVER);
     }
 
-    if (app_vision_uvc_is_connected() == RT_FALSE)
-    {
-        rt_kprintf("[app][vision_uvc] no UVC device connected\r\n");
-    }
-    else
-    {
-        rt_kprintf("[app][vision_uvc] connected /dev/video%u\r\n", g_uvc_video->minor);
-        usbh_video_list_info(g_uvc_video);
-    }
+    g_uvc_stats.valid = RT_TRUE;
+    g_uvc_stats.width = g_uvc_width;
+    g_uvc_stats.height = g_uvc_height;
+    g_uvc_stats.format = (rt_uint8_t)frame->frame_format;
+    g_uvc_stats.frame_count++;
+    g_uvc_stats.frame_len = frame_size;
+    g_uvc_stats.min_v = min_v;
+    g_uvc_stats.max_v = max_v;
+    g_uvc_stats.mean_v = mean;
+    g_uvc_stats.nonzero = nonzero;
+    g_uvc_stats.tick = rt_tick_get();
 
     if (g_uvc_lock != RT_NULL)
     {
         rt_mutex_release(g_uvc_lock);
     }
-
-    return 0;
 }
-MSH_CMD_EXPORT(vision_uvc_info, Print USB UVC camera information);
 
-static int vision_uvc_snap(int argc, char **argv)
+static void app_vision_uvc_keep_latest(struct usbh_videoframe **frame)
+{
+    struct usbh_videoframe *latest = *frame;
+    struct usbh_videoframe *queued = RT_NULL;
+
+    while (usbh_video_stream_dequeue(&queued, 0) == 0)
+    {
+        usbh_video_stream_enqueue(latest);
+        latest = queued;
+
+        if (g_uvc_lock != RT_NULL)
+        {
+            rt_mutex_take(g_uvc_lock, RT_WAITING_FOREVER);
+        }
+        g_uvc_stats.drop_count++;
+        if (g_uvc_lock != RT_NULL)
+        {
+            rt_mutex_release(g_uvc_lock);
+        }
+    }
+
+    *frame = latest;
+}
+
+static void app_vision_uvc_print_stats(const app_vision_uvc_stats_t *stats)
+{
+    if (stats->valid == RT_FALSE)
+    {
+        rt_kprintf("[app][vision_uvc] stream=%s waiting for frame\r\n", g_uvc_started ? "on" : "off");
+        return;
+    }
+
+    rt_kprintf("[app][vision_uvc] stream=%s width=%u height=%u format=%s frames=%u drops=%u frame_len=%u min=%u max=%u mean=%u nonzero=%u age_ms=%u\r\n",
+               g_uvc_started ? "on" : "off",
+               stats->width,
+               stats->height,
+               app_vision_uvc_format_name(stats->format),
+               stats->frame_count,
+               stats->drop_count,
+               stats->frame_len,
+               stats->min_v,
+               stats->max_v,
+               stats->mean_v,
+               stats->nonzero,
+               (rt_uint32_t)((rt_tick_get() - stats->tick) * 1000U / RT_TICK_PER_SECOND));
+}
+
+static void app_vision_uvc_worker_entry(void *parameter)
 {
     struct usbh_videoframe *frame = RT_NULL;
-    rt_uint8_t format = USBH_VIDEO_FORMAT_UNCOMPRESSED;
-    rt_uint16_t width = APP_UVC_SNAP_WIDTH;
-    rt_uint16_t height = APP_UVC_SNAP_HEIGHT;
     int ret;
 
-    if (argc >= 2)
+    RT_UNUSED(parameter);
+
+    while (g_uvc_started == RT_TRUE)
     {
-        format = (rt_uint8_t)atoi(argv[1]);
-        if (format != USBH_VIDEO_FORMAT_UNCOMPRESSED && format != USBH_VIDEO_FORMAT_MJPEG)
+        ret = usbh_video_stream_dequeue(&frame, RT_TICK_PER_SECOND);
+        if (ret < 0 || frame == RT_NULL)
         {
-            rt_kprintf("[app][vision_uvc] invalid format: %u, use 0=uncompressed or 1=mjpeg\r\n", format);
-            return -RT_EINVAL;
+            continue;
         }
+
+        app_vision_uvc_keep_latest(&frame);
+        app_vision_uvc_update_stats(frame);
+        usbh_video_stream_enqueue(frame);
     }
-    if (argc >= 4)
-    {
-        width = (rt_uint16_t)atoi(argv[2]);
-        height = (rt_uint16_t)atoi(argv[3]);
-        if ((width == 0U) || (height == 0U) || ((rt_uint32_t)width * height * APP_UVC_BYTES_PER_PIXEL > APP_UVC_FRAME_BUF_SIZE))
-        {
-            rt_kprintf("[app][vision_uvc] invalid size: %ux%u, max raw buffer is %ux%u\r\n",
-                       width,
-                       height,
-                       APP_UVC_MAX_WIDTH,
-                       APP_UVC_MAX_HEIGHT);
-            return -RT_EINVAL;
-        }
-    }
+
+    g_uvc_worker = RT_NULL;
+}
+
+static int app_vision_uvc_start_stream(rt_uint8_t format, rt_uint16_t width, rt_uint16_t height)
+{
+    int ret;
 
     if (g_uvc_lock != RT_NULL)
     {
@@ -255,41 +334,75 @@ static int vision_uvc_snap(int argc, char **argv)
         return ret;
     }
 
+    memset(&g_uvc_stats, 0, sizeof(g_uvc_stats));
+    g_uvc_width = width;
+    g_uvc_height = height;
     g_uvc_started = RT_TRUE;
-    rt_kprintf("[app][vision_uvc] snap start width=%u height=%u format=%s\r\n",
+
+    g_uvc_worker = rt_thread_create("uvc_frm",
+                                    app_vision_uvc_worker_entry,
+                                    RT_NULL,
+                                    APP_UVC_WORKER_STACK,
+                                    APP_UVC_WORKER_PRIORITY,
+                                    APP_UVC_WORKER_TICK);
+    if (g_uvc_worker == RT_NULL)
+    {
+        g_uvc_started = RT_FALSE;
+        rt_kprintf("[app][vision_uvc] create frame worker failed\r\n");
+        if (g_uvc_lock != RT_NULL)
+        {
+            rt_mutex_release(g_uvc_lock);
+        }
+        return -RT_ENOMEM;
+    }
+
+    rt_thread_startup(g_uvc_worker);
+
+    rt_kprintf("[app][vision_uvc] stream start width=%u height=%u format=%s\r\n",
                width,
                height,
                app_vision_uvc_format_name(format));
-
-    usbh_video_stream_start(width, height, format);
 
     if (g_uvc_lock != RT_NULL)
     {
         rt_mutex_release(g_uvc_lock);
     }
 
-    ret = usbh_video_stream_dequeue(&frame, rt_tick_from_millisecond(APP_UVC_SNAP_TIMEOUT_MS));
+    usbh_video_stream_start(width, height, format);
+    return 0;
+}
 
+static int app_vision_uvc_stop_stream(void)
+{
+    if (g_uvc_started == RT_FALSE)
+    {
+        rt_kprintf("[app][vision_uvc] UVC stream not running\r\n");
+        return 0;
+    }
+
+    g_uvc_started = RT_FALSE;
+    rt_thread_mdelay(100);
+    usbh_video_stream_stop();
+    rt_kprintf("[app][vision_uvc] stream stopped\r\n");
+    return 0;
+}
+
+static int vision_uvc_info(int argc, char **argv)
+{
     if (g_uvc_lock != RT_NULL)
     {
         rt_mutex_take(g_uvc_lock, RT_WAITING_FOREVER);
     }
 
-    usbh_video_stream_stop();
-    g_uvc_started = RT_FALSE;
-
-    if (ret < 0 || frame == RT_NULL)
+    if (app_vision_uvc_is_connected() == RT_FALSE)
     {
-        rt_kprintf("[app][vision_uvc] snap timeout or failed: %d\r\n", ret);
-        if (g_uvc_lock != RT_NULL)
-        {
-            rt_mutex_release(g_uvc_lock);
-        }
-        return ret < 0 ? ret : -RT_ETIMEOUT;
+        rt_kprintf("[app][vision_uvc] no UVC device connected\r\n");
     }
-
-    app_vision_uvc_print_stats(frame, width, height);
-    usbh_video_stream_enqueue(frame);
+    else
+    {
+        rt_kprintf("[app][vision_uvc] connected /dev/video%u\r\n", g_uvc_video->minor);
+        usbh_video_list_info(g_uvc_video);
+    }
 
     if (g_uvc_lock != RT_NULL)
     {
@@ -298,7 +411,111 @@ static int vision_uvc_snap(int argc, char **argv)
 
     return 0;
 }
-MSH_CMD_EXPORT(vision_uvc_snap, Capture one UVC frame);
+MSH_CMD_EXPORT(vision_uvc_info, Print USB UVC camera information);
+
+static int vision_uvc_snap(int argc, char **argv)
+{
+    rt_uint8_t format = USBH_VIDEO_FORMAT_UNCOMPRESSED;
+    rt_uint16_t width = APP_UVC_SNAP_WIDTH;
+    rt_uint16_t height = APP_UVC_SNAP_HEIGHT;
+    int ret;
+    rt_tick_t deadline;
+
+    ret = app_vision_uvc_parse_options(argc, argv, &format, &width, &height);
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    if (g_uvc_started == RT_FALSE)
+    {
+        ret = app_vision_uvc_start_stream(format, width, height);
+        if (ret < 0)
+        {
+            return ret;
+        }
+    }
+
+    deadline = rt_tick_get() + rt_tick_from_millisecond(APP_UVC_SNAP_TIMEOUT_MS);
+    while (rt_tick_get() < deadline)
+    {
+        app_vision_uvc_stats_t stats;
+
+        if (g_uvc_lock != RT_NULL)
+        {
+            rt_mutex_take(g_uvc_lock, RT_WAITING_FOREVER);
+        }
+
+        stats = g_uvc_stats;
+
+        if (g_uvc_lock != RT_NULL)
+        {
+            rt_mutex_release(g_uvc_lock);
+        }
+
+        if (stats.valid == RT_TRUE)
+        {
+            app_vision_uvc_print_stats(&stats);
+            return 0;
+        }
+
+        rt_thread_mdelay(20);
+    }
+
+    rt_kprintf("[app][vision_uvc] snap waiting for first frame timed out; stream remains running\r\n");
+    return -RT_ETIMEOUT;
+}
+MSH_CMD_EXPORT(vision_uvc_snap, Start UVC stream and print first frame stats);
+
+static int vision_uvc_start(int argc, char **argv)
+{
+    rt_uint8_t format = USBH_VIDEO_FORMAT_UNCOMPRESSED;
+    rt_uint16_t width = APP_UVC_SNAP_WIDTH;
+    rt_uint16_t height = APP_UVC_SNAP_HEIGHT;
+    int ret;
+
+    ret = app_vision_uvc_parse_options(argc, argv, &format, &width, &height);
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    return app_vision_uvc_start_stream(format, width, height);
+}
+MSH_CMD_EXPORT(vision_uvc_start, Start UVC diagnostic stream);
+
+static int vision_uvc_stop(int argc, char **argv)
+{
+    RT_UNUSED(argc);
+    RT_UNUSED(argv);
+
+    return app_vision_uvc_stop_stream();
+}
+MSH_CMD_EXPORT(vision_uvc_stop, Stop UVC diagnostic stream);
+
+static int vision_uvc_stats(int argc, char **argv)
+{
+    app_vision_uvc_stats_t stats;
+
+    RT_UNUSED(argc);
+    RT_UNUSED(argv);
+
+    if (g_uvc_lock != RT_NULL)
+    {
+        rt_mutex_take(g_uvc_lock, RT_WAITING_FOREVER);
+    }
+
+    stats = g_uvc_stats;
+
+    if (g_uvc_lock != RT_NULL)
+    {
+        rt_mutex_release(g_uvc_lock);
+    }
+
+    app_vision_uvc_print_stats(&stats);
+    return 0;
+}
+MSH_CMD_EXPORT(vision_uvc_stats, Print latest UVC frame stats);
 
 rt_err_t app_vision_uvc_init(void)
 {
