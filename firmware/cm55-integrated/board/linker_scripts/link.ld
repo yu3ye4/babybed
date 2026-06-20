@@ -390,6 +390,7 @@ SECTIONS
         *(.bss.g_dwc2_hcd)
         *(.bss.usbh_uvc_pool)
         *(.bss.g_uvc_dma_lli)
+        *(.bss.usbh_uvc_frame)
 
         . = ALIGN(4);
 

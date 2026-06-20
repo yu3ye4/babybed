@@ -15,8 +15,8 @@
 
 #define APP_UVC_SNAP_WIDTH       320U
 #define APP_UVC_SNAP_HEIGHT      240U
-#define APP_UVC_MAX_WIDTH        640U
-#define APP_UVC_MAX_HEIGHT       480U
+#define APP_UVC_MAX_WIDTH        320U
+#define APP_UVC_MAX_HEIGHT       240U
 #define APP_UVC_BYTES_PER_PIXEL  2U
 #define APP_UVC_FRAME_BUF_SIZE   (APP_UVC_MAX_WIDTH * APP_UVC_MAX_HEIGHT * APP_UVC_BYTES_PER_PIXEL)
 #define APP_UVC_FRAME_BUF_COUNT  4U
@@ -51,7 +51,7 @@ static rt_uint16_t g_uvc_height = APP_UVC_SNAP_HEIGHT;
 static app_vision_uvc_stats_t g_uvc_stats;
 
 static rt_uint8_t g_uvc_frame_buffer[APP_UVC_FRAME_BUF_COUNT][APP_UVC_FRAME_BUF_SIZE]
-    __attribute__((aligned(32), section(".m33_m55_shared_hyperram")));
+    __attribute__((aligned(32), section(".bss.usbh_uvc_frame")));
 static struct usbh_videoframe g_uvc_frame_pool[APP_UVC_FRAME_BUF_COUNT];
 
 void usbh_video_run(struct usbh_video *video_class)
