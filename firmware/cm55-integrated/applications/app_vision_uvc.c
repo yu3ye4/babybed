@@ -89,6 +89,11 @@ static void app_vision_uvc_init_frame_pool(void)
     }
 }
 
+static const char *app_vision_uvc_format_name(rt_uint8_t format)
+{
+    return format == USBH_VIDEO_FORMAT_MJPEG ? "mjpeg" : "uncompressed";
+}
+
 static int app_vision_uvc_ensure_stream(void)
 {
     int ret;
@@ -110,7 +115,7 @@ static int app_vision_uvc_ensure_stream(void)
     return 0;
 }
 
-static void app_vision_uvc_print_stats(struct usbh_videoframe *frame)
+static void app_vision_uvc_print_stats(struct usbh_videoframe *frame, rt_uint16_t width, rt_uint16_t height)
 {
     rt_uint8_t min_v = 255;
     rt_uint8_t max_v = 0;
@@ -119,7 +124,7 @@ static void app_vision_uvc_print_stats(struct usbh_videoframe *frame)
     rt_uint32_t mean = 0;
     rt_uint32_t frame_size = frame->frame_size;
     const rt_uint8_t *buf = frame->frame_buf;
-    const char *format = frame->frame_format == USBH_VIDEO_FORMAT_MJPEG ? "mjpeg" : "uncompressed";
+    const char *format = app_vision_uvc_format_name((rt_uint8_t)frame->frame_format);
 
     for (rt_uint32_t i = 0; i < frame_size; i++)
     {
@@ -146,8 +151,8 @@ static void app_vision_uvc_print_stats(struct usbh_videoframe *frame)
     }
 
     rt_kprintf("[app][vision_uvc] width=%u height=%u format=%s frame_len=%u min=%u max=%u mean=%u nonzero=%u\r\n",
-               APP_UVC_SNAP_WIDTH,
-               APP_UVC_SNAP_HEIGHT,
+               width,
+               height,
                format,
                frame_size,
                min_v,
@@ -185,7 +190,34 @@ MSH_CMD_EXPORT(vision_uvc_info, Print USB UVC camera information);
 static int vision_uvc_snap(int argc, char **argv)
 {
     struct usbh_videoframe *frame = RT_NULL;
+    rt_uint8_t format = USBH_VIDEO_FORMAT_UNCOMPRESSED;
+    rt_uint16_t width = APP_UVC_SNAP_WIDTH;
+    rt_uint16_t height = APP_UVC_SNAP_HEIGHT;
     int ret;
+
+    if (argc >= 2)
+    {
+        format = (rt_uint8_t)atoi(argv[1]);
+        if (format != USBH_VIDEO_FORMAT_UNCOMPRESSED && format != USBH_VIDEO_FORMAT_MJPEG)
+        {
+            rt_kprintf("[app][vision_uvc] invalid format: %u, use 0=uncompressed or 1=mjpeg\r\n", format);
+            return -RT_EINVAL;
+        }
+    }
+    if (argc >= 4)
+    {
+        width = (rt_uint16_t)atoi(argv[2]);
+        height = (rt_uint16_t)atoi(argv[3]);
+        if ((width == 0U) || (height == 0U) || ((rt_uint32_t)width * height * APP_UVC_BYTES_PER_PIXEL > APP_UVC_FRAME_BUF_SIZE))
+        {
+            rt_kprintf("[app][vision_uvc] invalid size: %ux%u, max raw buffer is %ux%u\r\n",
+                       width,
+                       height,
+                       APP_UVC_SNAP_WIDTH,
+                       APP_UVC_SNAP_HEIGHT);
+            return -RT_EINVAL;
+        }
+    }
 
     if (g_uvc_lock != RT_NULL)
     {
@@ -223,11 +255,12 @@ static int vision_uvc_snap(int argc, char **argv)
     }
 
     g_uvc_started = RT_TRUE;
-    rt_kprintf("[app][vision_uvc] snap start width=%u height=%u format=uncompressed\r\n",
-               APP_UVC_SNAP_WIDTH,
-               APP_UVC_SNAP_HEIGHT);
+    rt_kprintf("[app][vision_uvc] snap start width=%u height=%u format=%s\r\n",
+               width,
+               height,
+               app_vision_uvc_format_name(format));
 
-    usbh_video_stream_start(APP_UVC_SNAP_WIDTH, APP_UVC_SNAP_HEIGHT, USBH_VIDEO_FORMAT_UNCOMPRESSED);
+    usbh_video_stream_start(width, height, format);
 
     if (g_uvc_lock != RT_NULL)
     {
@@ -254,7 +287,7 @@ static int vision_uvc_snap(int argc, char **argv)
         return ret < 0 ? ret : -RT_ETIMEOUT;
     }
 
-    app_vision_uvc_print_stats(frame);
+    app_vision_uvc_print_stats(frame, width, height);
     usbh_video_stream_enqueue(frame);
 
     if (g_uvc_lock != RT_NULL)
@@ -264,7 +297,7 @@ static int vision_uvc_snap(int argc, char **argv)
 
     return 0;
 }
-MSH_CMD_EXPORT(vision_uvc_snap, Capture one 320x240 uncompressed UVC frame and print stats);
+MSH_CMD_EXPORT(vision_uvc_snap, Capture one UVC frame: vision_uvc_snap [fmt:0=yuyv,1=mjpeg] [w] [h]);
 
 rt_err_t app_vision_uvc_init(void)
 {
