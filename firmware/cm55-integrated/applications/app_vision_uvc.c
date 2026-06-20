@@ -15,9 +15,11 @@
 
 #define APP_UVC_SNAP_WIDTH       320U
 #define APP_UVC_SNAP_HEIGHT      240U
+#define APP_UVC_MAX_WIDTH        640U
+#define APP_UVC_MAX_HEIGHT       480U
 #define APP_UVC_BYTES_PER_PIXEL  2U
-#define APP_UVC_FRAME_BUF_SIZE   (APP_UVC_SNAP_WIDTH * APP_UVC_SNAP_HEIGHT * APP_UVC_BYTES_PER_PIXEL)
-#define APP_UVC_FRAME_BUF_COUNT  2U
+#define APP_UVC_FRAME_BUF_SIZE   (APP_UVC_MAX_WIDTH * APP_UVC_MAX_HEIGHT * APP_UVC_BYTES_PER_PIXEL)
+#define APP_UVC_FRAME_BUF_COUNT  4U
 #define APP_UVC_SNAP_TIMEOUT_MS  3000U
 
 static struct usbh_video *g_uvc_video;
@@ -82,10 +84,9 @@ static void app_vision_uvc_init_frame_pool(void)
 {
     for (rt_size_t i = 0; i < APP_UVC_FRAME_BUF_COUNT; i++)
     {
+        memset(&g_uvc_frame_pool[i], 0, sizeof(g_uvc_frame_pool[i]));
         g_uvc_frame_pool[i].frame_buf = g_uvc_frame_buffer[i];
         g_uvc_frame_pool[i].frame_bufsize = APP_UVC_FRAME_BUF_SIZE;
-        g_uvc_frame_pool[i].frame_format = USBH_VIDEO_FORMAT_UNCOMPRESSED;
-        g_uvc_frame_pool[i].frame_size = 0;
     }
 }
 
@@ -213,8 +214,8 @@ static int vision_uvc_snap(int argc, char **argv)
             rt_kprintf("[app][vision_uvc] invalid size: %ux%u, max raw buffer is %ux%u\r\n",
                        width,
                        height,
-                       APP_UVC_SNAP_WIDTH,
-                       APP_UVC_SNAP_HEIGHT);
+                       APP_UVC_MAX_WIDTH,
+                       APP_UVC_MAX_HEIGHT);
             return -RT_EINVAL;
         }
     }
