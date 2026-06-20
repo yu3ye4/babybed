@@ -19,6 +19,7 @@
 #include "app_ads1115.h"
 #include "app_breath.h"
 #include "app_alert.h"
+#include "app_vision_uvc.h"
 
 /*****************************************************************************
  * Macro Definitions
@@ -97,6 +98,11 @@ int main(void)
     if (app_alert_init() != RT_EOK)
     {
         APP_LOG("boot", "app_alert_init failed");
+    }
+
+    if (app_vision_uvc_init() != RT_EOK)
+    {
+        APP_LOG("boot", "app_vision_uvc_init failed");
     }
 
 #if APP_MQTT_ENABLE

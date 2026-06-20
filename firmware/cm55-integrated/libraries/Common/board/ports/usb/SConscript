@@ -1,0 +1,14 @@
+from building import *
+
+cwd = GetCurrentDir()
+
+group = DefineGroup(
+    'UsbUvc',
+    [],
+    depend=['RT_CHERRYUSB_HOST_VIDEO'],
+    CPPPATH=[cwd],
+    LIBPATH=[cwd],
+    LIBS=['usbh_uvc_stream', 'usbh_uvc_port'],
+)
+
+Return('group')

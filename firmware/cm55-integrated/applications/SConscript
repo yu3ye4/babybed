@@ -6,6 +6,11 @@ cwd  = GetCurrentDir()
 path = [cwd]
 src  = Glob('*.c')
 
+if GetDepend('RT_USING_CHERRYUSB'):
+    path += [cwd + '/../libraries/components/CherryUSB-1.6.0/core']
+    path += [cwd + '/../libraries/components/CherryUSB-1.6.0/class/video']
+    path += [cwd + '/../libraries/Common/board/ports/usb']
+
 group = DefineGroup('Applications', src, depend = [''], CPPPATH = path)
 
 list = os.listdir(cwd)
