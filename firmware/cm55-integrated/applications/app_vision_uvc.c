@@ -297,7 +297,7 @@ static int vision_uvc_snap(int argc, char **argv)
 
     return 0;
 }
-MSH_CMD_EXPORT(vision_uvc_snap, Capture one UVC frame: vision_uvc_snap [fmt:0=yuyv,1=mjpeg] [w] [h]);
+MSH_CMD_EXPORT(vision_uvc_snap, Capture one UVC frame);
 
 rt_err_t app_vision_uvc_init(void)
 {
