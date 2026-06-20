@@ -46,7 +46,7 @@
 #include "edge-impulse-sdk/classifier/inferencing_engines/engines.h"
 #include "edge-impulse-sdk/classifier/postprocessing/ei_postprocessing_common.h"
 
-const char* ei_classifier_inferencing_categories_1018688_1[] = { "crying", "noise" };
+const char* ei_classifier_inferencing_categories_1018688_1[] = { "crying", "silence" };
 
 ei_dsp_named_axis_t ei_dsp_config_1018688_3_named_axes[] = {
     { .name = "Signal", .axis = 0 }
@@ -149,7 +149,7 @@ const ei_impulse_t impulse_1018688_1 = {
     .project_name = "sen-illion-project-1",
     .impulse_id = 1,
     .impulse_name = "Impulse #1",
-    .deploy_version = 1,
+    .deploy_version = 2,
 
     .nn_input_frame_size = 650,
     .raw_sample_count = 16000,
