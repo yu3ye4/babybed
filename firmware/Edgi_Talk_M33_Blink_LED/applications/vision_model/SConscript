@@ -1,0 +1,9 @@
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+path = [cwd]
+
+group = DefineGroup('VisionModel', src, depend=[''], CPPPATH=path)
+
+Return('group')
