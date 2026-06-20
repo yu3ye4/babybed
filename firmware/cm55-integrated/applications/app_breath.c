@@ -8,14 +8,24 @@
 #define APP_BREATH_THREAD_PRIORITY    18
 #define APP_BREATH_THREAD_TICK        20
 #define APP_BREATH_RETRY_DELAY_MS     1000
+#define APP_BREATH_Q                  256
+#define APP_BREATH_BASELINE_NUM       1
+#define APP_BREATH_BASELINE_DEN       200
+#define APP_BREATH_FILTER_NUM         15
+#define APP_BREATH_FILTER_DEN         100
 
 static rt_mutex_t g_breath_lock = RT_NULL;
 static rt_thread_t g_breath_thread = RT_NULL;
 static rt_bool_t g_breath_initialized = RT_FALSE;
 static rt_bool_t g_breath_sampling_online = RT_FALSE;
 static rt_int32_t *g_breath_ring = RT_NULL;
+static rt_int32_t *g_breath_filtered_ring = RT_NULL;
 static rt_uint16_t g_breath_write_index = 0;
 static rt_uint32_t g_breath_sample_count = 0;
+static rt_bool_t g_breath_filter_ready = RT_FALSE;
+static rt_int32_t g_breath_baseline_q = 0;
+static rt_int32_t g_breath_filtered_q = 0;
+static rt_tick_t g_breath_last_active_tick = 0;
 
 static rt_size_t breath_available_locked(void)
 {
@@ -43,10 +53,40 @@ static rt_size_t breath_clamp_window(rt_size_t value)
     return value;
 }
 
+static rt_int32_t breath_abs_i32(rt_int32_t value)
+{
+    return (value < 0) ? -value : value;
+}
+
+static rt_int32_t breath_filtered_sample(rt_int32_t mv)
+{
+    rt_int32_t signal_q;
+
+    if (!g_breath_filter_ready)
+    {
+        g_breath_baseline_q = mv * APP_BREATH_Q;
+        g_breath_filtered_q = 0;
+        g_breath_last_active_tick = rt_tick_get();
+        g_breath_filter_ready = RT_TRUE;
+        return 0;
+    }
+
+    g_breath_baseline_q += ((mv * APP_BREATH_Q - g_breath_baseline_q) *
+                            APP_BREATH_BASELINE_NUM) / APP_BREATH_BASELINE_DEN;
+    signal_q = mv * APP_BREATH_Q - g_breath_baseline_q;
+    g_breath_filtered_q += ((signal_q - g_breath_filtered_q) *
+                            APP_BREATH_FILTER_NUM) / APP_BREATH_FILTER_DEN;
+
+    return g_breath_filtered_q / APP_BREATH_Q;
+}
+
 static void breath_push_sample(rt_int32_t mv)
 {
+    rt_int32_t filtered_mv = breath_filtered_sample(mv);
+
     rt_mutex_take(g_breath_lock, RT_WAITING_FOREVER);
     g_breath_ring[g_breath_write_index] = mv;
+    g_breath_filtered_ring[g_breath_write_index] = filtered_mv;
     g_breath_write_index = (rt_uint16_t)((g_breath_write_index + 1) % APP_BREATH_RING_SIZE);
     g_breath_sample_count++;
     rt_mutex_release(g_breath_lock);
@@ -105,9 +145,20 @@ rt_err_t app_breath_init(void)
     }
 
     g_breath_ring = (rt_int32_t *)rt_calloc(APP_BREATH_RING_SIZE, sizeof(rt_int32_t));
-    if (g_breath_ring == RT_NULL)
+    g_breath_filtered_ring = (rt_int32_t *)rt_calloc(APP_BREATH_RING_SIZE, sizeof(rt_int32_t));
+    if (g_breath_ring == RT_NULL || g_breath_filtered_ring == RT_NULL)
     {
+        if (g_breath_ring != RT_NULL)
+        {
+            rt_free(g_breath_ring);
+        }
+        if (g_breath_filtered_ring != RT_NULL)
+        {
+            rt_free(g_breath_filtered_ring);
+        }
         rt_mutex_delete(g_breath_lock);
+        g_breath_ring = RT_NULL;
+        g_breath_filtered_ring = RT_NULL;
         g_breath_lock = RT_NULL;
         return -RT_ENOMEM;
     }
@@ -121,8 +172,10 @@ rt_err_t app_breath_init(void)
     if (g_breath_thread == RT_NULL)
     {
         rt_free(g_breath_ring);
+        rt_free(g_breath_filtered_ring);
         rt_mutex_delete(g_breath_lock);
         g_breath_ring = RT_NULL;
+        g_breath_filtered_ring = RT_NULL;
         g_breath_lock = RT_NULL;
         return -RT_ENOMEM;
     }
@@ -162,6 +215,35 @@ rt_size_t app_breath_copy_recent(rt_int32_t *mv_buf, rt_size_t max_count)
     return count;
 }
 
+rt_size_t app_breath_copy_recent_filtered(rt_int32_t *mv_buf, rt_size_t max_count)
+{
+    rt_size_t available;
+    rt_size_t count;
+    rt_uint16_t oldest;
+    rt_size_t start_offset;
+    rt_size_t i;
+
+    if (mv_buf == RT_NULL || max_count == 0 || g_breath_lock == RT_NULL || g_breath_filtered_ring == RT_NULL)
+    {
+        return 0;
+    }
+
+    rt_mutex_take(g_breath_lock, RT_WAITING_FOREVER);
+    available = breath_available_locked();
+    count = (max_count < available) ? max_count : available;
+    oldest = breath_oldest_index_locked(available);
+    start_offset = available - count;
+
+    for (i = 0; i < count; i++)
+    {
+        rt_uint16_t index = (rt_uint16_t)((oldest + start_offset + i) % APP_BREATH_RING_SIZE);
+        mv_buf[i] = g_breath_filtered_ring[index];
+    }
+
+    rt_mutex_release(g_breath_lock);
+    return count;
+}
+
 rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
 {
     rt_size_t available;
@@ -170,12 +252,15 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     rt_size_t start_offset;
     rt_size_t i;
     rt_int32_t sum = 0;
+    rt_int32_t energy_sum = 0;
+    rt_tick_t now;
+    rt_tick_t last_active_tick;
 
     if (stats == RT_NULL)
     {
         return -RT_EINVAL;
     }
-    if (g_breath_lock == RT_NULL || g_breath_ring == RT_NULL)
+    if (g_breath_lock == RT_NULL || g_breath_ring == RT_NULL || g_breath_filtered_ring == RT_NULL)
     {
         return -RT_ERROR;
     }
@@ -199,11 +284,14 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     {
         rt_uint16_t index = (rt_uint16_t)((oldest + start_offset + i) % APP_BREATH_RING_SIZE);
         rt_int32_t mv = g_breath_ring[index];
+        rt_int32_t filtered_mv = g_breath_filtered_ring[index];
 
         if (i == 0)
         {
             stats->min_mv = mv;
             stats->max_mv = mv;
+            stats->filtered_min_mv = filtered_mv;
+            stats->filtered_max_mv = filtered_mv;
         }
         else
         {
@@ -215,16 +303,63 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
             {
                 stats->max_mv = mv;
             }
+            if (filtered_mv < stats->filtered_min_mv)
+            {
+                stats->filtered_min_mv = filtered_mv;
+            }
+            if (filtered_mv > stats->filtered_max_mv)
+            {
+                stats->filtered_max_mv = filtered_mv;
+            }
         }
         sum += mv;
+        energy_sum += breath_abs_i32(filtered_mv);
     }
-    rt_mutex_release(g_breath_lock);
 
     stats->count = count;
     stats->base_mv = sum / (rt_int32_t)count;
     stats->pp_mv = stats->max_mv - stats->min_mv;
-    stats->active = (stats->pp_mv >= APP_BREATH_ACTIVE_PP_MV) ? RT_TRUE : RT_FALSE;
+    stats->filtered_pp_mv = stats->filtered_max_mv - stats->filtered_min_mv;
+    stats->energy_mv = energy_sum / (rt_int32_t)count;
+    stats->active = (stats->filtered_pp_mv >= APP_BREATH_ACTIVE_PP_MV ||
+                     stats->energy_mv >= APP_BREATH_ACTIVE_ENERGY_MV) ? RT_TRUE : RT_FALSE;
+    if (stats->active)
+    {
+        g_breath_last_active_tick = rt_tick_get();
+    }
+    last_active_tick = g_breath_last_active_tick;
+    rt_mutex_release(g_breath_lock);
+
+    now = rt_tick_get();
+    stats->apnea_seconds = (rt_int32_t)((now - last_active_tick) / RT_TICK_PER_SECOND);
+    if (stats->apnea_seconds >= APP_BREATH_APNEA_SECONDS)
+    {
+        stats->state = APP_BREATH_STATE_APNEA_SUSPECT;
+    }
+    else if (stats->apnea_seconds >= APP_BREATH_WEAK_SECONDS)
+    {
+        stats->state = APP_BREATH_STATE_WEAK_OR_MISSING;
+    }
+    else
+    {
+        stats->state = APP_BREATH_STATE_NORMAL;
+    }
     return RT_EOK;
+}
+
+const char *app_breath_state_name(app_breath_state_t state)
+{
+    switch (state)
+    {
+    case APP_BREATH_STATE_NORMAL:
+        return "normal";
+    case APP_BREATH_STATE_WEAK_OR_MISSING:
+        return "weak_or_missing";
+    case APP_BREATH_STATE_APNEA_SUSPECT:
+        return "apnea_suspect";
+    default:
+        return "unknown";
+    }
 }
 
 #ifdef RT_USING_MSH
@@ -259,13 +394,17 @@ static void breath_stats_cmd(int argc, char **argv)
         return;
     }
 
-    rt_kprintf("[app][breath] count=%u base_mv=%d min_mv=%d max_mv=%d pp_mv=%d active=%d\r\n",
+    rt_kprintf("[app][breath] count=%u base_mv=%d min_mv=%d max_mv=%d pp_mv=%d filtered_pp_mv=%d energy_mv=%d active=%d apnea_seconds=%d state=%s\r\n",
                (unsigned int)stats.count,
                stats.base_mv,
                stats.min_mv,
                stats.max_mv,
                stats.pp_mv,
-               stats.active ? 1 : 0);
+               stats.filtered_pp_mv,
+               stats.energy_mv,
+               stats.active ? 1 : 0,
+               stats.apnea_seconds,
+               app_breath_state_name(stats.state));
 }
 MSH_CMD_EXPORT_ALIAS(breath_stats_cmd, breath_stats, show recent breath signal stats);
 

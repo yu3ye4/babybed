@@ -133,9 +133,14 @@ def append_breath(topic: str, payload: bytes) -> None:
     except json.JSONDecodeError:
         return
 
-    samples = data.get("samples")
+    samples = data.get("raw")
+    if not isinstance(samples, list):
+        samples = data.get("samples")
     if not isinstance(samples, list):
         return
+    filtered_samples = data.get("filtered")
+    if not isinstance(filtered_samples, list):
+        filtered_samples = []
 
     hz = int(data.get("hz", 50) or 50)
     if hz <= 0:
@@ -149,8 +154,14 @@ def append_breath(topic: str, payload: bytes) -> None:
             mv = int(sample)
         except (TypeError, ValueError):
             continue
+        filtered_mv = None
+        if index < len(filtered_samples):
+            try:
+                filtered_mv = int(filtered_samples[index])
+            except (TypeError, ValueError):
+                filtered_mv = None
         sample_time = recv_time - max(0, count - index - 1) / hz
-        points.append({"time": sample_time, "mv": mv})
+        points.append({"time": sample_time, "mv": mv, "filtered_mv": filtered_mv})
 
     latest = {
         "recv_time": recv_time,
@@ -162,7 +173,11 @@ def append_breath(topic: str, payload: bytes) -> None:
         "min_mv": data.get("min_mv"),
         "max_mv": data.get("max_mv"),
         "pp_mv": data.get("pp_mv"),
+        "filtered_pp_mv": data.get("filtered_pp_mv"),
+        "energy_mv": data.get("energy_mv"),
         "active": bool(data.get("active")),
+        "apnea_seconds": data.get("apnea_seconds"),
+        "state": data.get("state"),
     }
 
     with state_lock:

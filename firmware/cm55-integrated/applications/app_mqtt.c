@@ -543,7 +543,7 @@ static void mqtt_append_breath_stats(char *buf, rt_size_t size)
         return;
     }
 
-    if (app_breath_get_stats(APP_BREATH_DEFAULT_WINDOW, &stats) != RT_EOK)
+    if (app_breath_get_stats(APP_BREATH_ACTIVITY_WINDOW, &stats) != RT_EOK)
     {
         return;
     }
@@ -556,18 +556,24 @@ static void mqtt_append_breath_stats(char *buf, rt_size_t size)
 
     rt_snprintf(buf + len,
                 size - len,
-                ",breath_base_mv=%d,breath_pp_mv=%d,breath_active=%d",
+                ",breath_base_mv=%d,breath_pp_mv=%d,breath_active=%d,breath_filtered_pp_mv=%d,breath_energy_mv=%d,breath_apnea_seconds=%d,breath_state=%s",
                 stats.base_mv,
                 stats.pp_mv,
-                stats.active ? 1 : 0);
+                stats.active ? 1 : 0,
+                stats.filtered_pp_mv,
+                stats.energy_mv,
+                stats.apnea_seconds,
+                app_breath_state_name(stats.state));
 }
 
 static void mqtt_publish_breath_waveform(void)
 {
     rt_int32_t samples[APP_MQTT_BREATH_POINTS];
+    rt_int32_t filtered[APP_MQTT_BREATH_POINTS];
     app_breath_stats_t stats;
     char payload[APP_MQTT_BUF_SIZE];
     rt_size_t count;
+    rt_size_t filtered_count;
     rt_size_t pos = 0;
     rt_size_t i;
     int ret;
@@ -577,27 +583,36 @@ static void mqtt_publish_breath_waveform(void)
         return;
     }
 
-    if (app_breath_get_stats(APP_BREATH_DEFAULT_WINDOW, &stats) != RT_EOK)
+    if (app_breath_get_stats(APP_BREATH_ACTIVITY_WINDOW, &stats) != RT_EOK)
     {
         return;
     }
 
     count = app_breath_copy_recent(samples, APP_MQTT_BREATH_POINTS);
-    if (count == 0)
+    filtered_count = app_breath_copy_recent_filtered(filtered, APP_MQTT_BREATH_POINTS);
+    if (count == 0 || filtered_count == 0)
     {
         return;
+    }
+    if (filtered_count < count)
+    {
+        count = filtered_count;
     }
 
     rt_snprintf(payload,
                 sizeof(payload),
-                "{\"type\":\"breath\",\"hz\":%d,\"count\":%u,\"base_mv\":%d,\"min_mv\":%d,\"max_mv\":%d,\"pp_mv\":%d,\"active\":%d,\"samples\":[",
+                "{\"type\":\"breath\",\"hz\":%d,\"count\":%u,\"base_mv\":%d,\"min_mv\":%d,\"max_mv\":%d,\"pp_mv\":%d,\"filtered_pp_mv\":%d,\"energy_mv\":%d,\"active\":%d,\"apnea_seconds\":%d,\"state\":\"%s\",\"samples\":[",
                 APP_BREATH_SAMPLE_HZ,
                 (unsigned int)count,
                 stats.base_mv,
                 stats.min_mv,
                 stats.max_mv,
                 stats.pp_mv,
-                stats.active ? 1 : 0);
+                stats.filtered_pp_mv,
+                stats.energy_mv,
+                stats.active ? 1 : 0,
+                stats.apnea_seconds,
+                app_breath_state_name(stats.state));
     pos = rt_strlen(payload);
 
     for (i = 0; i < count && pos + 16 < sizeof(payload); i++)
@@ -607,6 +622,36 @@ static void mqtt_publish_breath_waveform(void)
                            "%s%d",
                            (i == 0) ? "" : ",",
                            samples[i]);
+    }
+
+    if (pos + 16 >= sizeof(payload))
+    {
+        return;
+    }
+    pos += rt_snprintf(payload + pos, sizeof(payload) - pos, "],\"raw\":[");
+
+    for (i = 0; i < count && pos + 16 < sizeof(payload); i++)
+    {
+        pos += rt_snprintf(payload + pos,
+                           sizeof(payload) - pos,
+                           "%s%d",
+                           (i == 0) ? "" : ",",
+                           samples[i]);
+    }
+
+    if (pos + 20 >= sizeof(payload))
+    {
+        return;
+    }
+    pos += rt_snprintf(payload + pos, sizeof(payload) - pos, "],\"filtered\":[");
+
+    for (i = 0; i < count && pos + 16 < sizeof(payload); i++)
+    {
+        pos += rt_snprintf(payload + pos,
+                           sizeof(payload) - pos,
+                           "%s%d",
+                           (i == 0) ? "" : ",",
+                           filtered[i]);
     }
 
     if (pos + 3 >= sizeof(payload))
