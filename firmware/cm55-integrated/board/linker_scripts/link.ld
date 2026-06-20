@@ -266,6 +266,9 @@ SECTIONS
         LONG(__bss_start__)                       /* Start of the zero-initialized data section */
         LONG((__bss_end__ - __bss_start__)/4)     /* Size of the zero-initialized data section in words */
 
+        LONG(__usbhost_bss_start__)               /* Start of USB host state in SOC memory */
+        LONG((__usbhost_bss_end__ - __usbhost_bss_start__)/4)
+
         __zero_table_end__ = .;
     } > m55_nvm_sel
 
@@ -376,6 +379,22 @@ SECTIONS
 
         __noinit_end__ = .;
     } > m55_data_INTERNAL
+
+    .usbhost_bss(NOLOAD) : ALIGN(4)
+    {
+        __usbhost_bss_start__ = .;
+
+        *(.bss.g_usbhost_bus)
+        *(.bss.g_hub_class)
+        *(.bss.g_video_class)
+        *(.bss.g_dwc2_hcd)
+        *(.bss.usbh_uvc_pool)
+        *(.bss.g_uvc_dma_lli)
+
+        . = ALIGN(4);
+
+        __usbhost_bss_end__ = .;
+    } > m55_data_secondary
 
     /* A section for non-initialized data memory */
     .bss(NOLOAD) : ALIGN(4)
