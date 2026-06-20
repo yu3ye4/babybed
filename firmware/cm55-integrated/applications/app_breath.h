@@ -11,8 +11,12 @@ extern "C" {
 #define APP_BREATH_RING_SIZE          500
 #define APP_BREATH_DEFAULT_WINDOW     300
 #define APP_BREATH_ACTIVITY_WINDOW    100
-#define APP_BREATH_ACTIVE_PP_MV       8
-#define APP_BREATH_ACTIVE_ENERGY_MV   3
+#define APP_BREATH_ACTIVE_PP_MV       150
+#define APP_BREATH_ACTIVE_ENERGY_MV   55
+#define APP_BREATH_MOTION_PROM_MV     25
+#define APP_BREATH_MOTION_MIN_GAP     15
+#define APP_BREATH_PERIODIC_MIN_COUNT 2
+#define APP_BREATH_PERIODIC_MAX_COUNT 12
 #define APP_BREATH_WEAK_SECONDS       5
 #define APP_BREATH_APNEA_SECONDS      10
 
@@ -35,6 +39,8 @@ typedef struct
     rt_int32_t filtered_max_mv;
     rt_int32_t filtered_pp_mv;
     rt_int32_t energy_mv;
+    rt_int32_t motion_count;
+    rt_bool_t periodic;
     rt_int32_t apnea_seconds;
     app_breath_state_t state;
 } app_breath_stats_t;

@@ -536,6 +536,7 @@ static rt_bool_t mqtt_publish_cry_alert(void)
 static void mqtt_append_breath_stats(char *buf, rt_size_t size)
 {
     app_breath_stats_t stats;
+    app_breath_stats_t periodic_stats;
     rt_size_t len;
 
     if (buf == RT_NULL || size == 0)
@@ -547,6 +548,11 @@ static void mqtt_append_breath_stats(char *buf, rt_size_t size)
     {
         return;
     }
+    if (app_breath_get_stats(APP_BREATH_RING_SIZE, &periodic_stats) == RT_EOK)
+    {
+        stats.motion_count = periodic_stats.motion_count;
+        stats.periodic = periodic_stats.periodic;
+    }
 
     len = rt_strlen(buf);
     if (len >= size)
@@ -556,12 +562,14 @@ static void mqtt_append_breath_stats(char *buf, rt_size_t size)
 
     rt_snprintf(buf + len,
                 size - len,
-                ",breath_base_mv=%d,breath_pp_mv=%d,breath_active=%d,breath_filtered_pp_mv=%d,breath_energy_mv=%d,breath_apnea_seconds=%d,breath_state=%s",
+                ",breath_base_mv=%d,breath_pp_mv=%d,breath_active=%d,breath_filtered_pp_mv=%d,breath_energy_mv=%d,breath_motion_count=%d,breath_periodic=%d,breath_apnea_seconds=%d,breath_state=%s",
                 stats.base_mv,
                 stats.pp_mv,
                 stats.active ? 1 : 0,
                 stats.filtered_pp_mv,
                 stats.energy_mv,
+                stats.motion_count,
+                stats.periodic ? 1 : 0,
                 stats.apnea_seconds,
                 app_breath_state_name(stats.state));
 }
@@ -571,6 +579,7 @@ static void mqtt_publish_breath_waveform(void)
     rt_int32_t samples[APP_MQTT_BREATH_POINTS];
     rt_int32_t filtered[APP_MQTT_BREATH_POINTS];
     app_breath_stats_t stats;
+    app_breath_stats_t periodic_stats;
     char payload[APP_MQTT_BUF_SIZE];
     rt_size_t count;
     rt_size_t filtered_count;
@@ -587,6 +596,11 @@ static void mqtt_publish_breath_waveform(void)
     {
         return;
     }
+    if (app_breath_get_stats(APP_BREATH_RING_SIZE, &periodic_stats) == RT_EOK)
+    {
+        stats.motion_count = periodic_stats.motion_count;
+        stats.periodic = periodic_stats.periodic;
+    }
 
     count = app_breath_copy_recent(samples, APP_MQTT_BREATH_POINTS);
     filtered_count = app_breath_copy_recent_filtered(filtered, APP_MQTT_BREATH_POINTS);
@@ -601,7 +615,7 @@ static void mqtt_publish_breath_waveform(void)
 
     rt_snprintf(payload,
                 sizeof(payload),
-                "{\"type\":\"breath\",\"hz\":%d,\"count\":%u,\"base_mv\":%d,\"min_mv\":%d,\"max_mv\":%d,\"pp_mv\":%d,\"filtered_pp_mv\":%d,\"energy_mv\":%d,\"active\":%d,\"apnea_seconds\":%d,\"state\":\"%s\",\"samples\":[",
+                "{\"type\":\"breath\",\"hz\":%d,\"count\":%u,\"base_mv\":%d,\"min_mv\":%d,\"max_mv\":%d,\"pp_mv\":%d,\"filtered_pp_mv\":%d,\"energy_mv\":%d,\"motion_count\":%d,\"periodic\":%d,\"active\":%d,\"apnea_seconds\":%d,\"state\":\"%s\",\"samples\":[",
                 APP_BREATH_SAMPLE_HZ,
                 (unsigned int)count,
                 stats.base_mv,
@@ -610,6 +624,8 @@ static void mqtt_publish_breath_waveform(void)
                 stats.pp_mv,
                 stats.filtered_pp_mv,
                 stats.energy_mv,
+                stats.motion_count,
+                stats.periodic ? 1 : 0,
                 stats.active ? 1 : 0,
                 stats.apnea_seconds,
                 app_breath_state_name(stats.state));

@@ -253,6 +253,7 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     rt_size_t i;
     rt_int32_t sum = 0;
     rt_int32_t energy_sum = 0;
+    rt_size_t last_motion_i = APP_BREATH_RING_SIZE;
     rt_tick_t now;
     rt_tick_t last_active_tick;
 
@@ -314,6 +315,43 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
         }
         sum += mv;
         energy_sum += breath_abs_i32(filtered_mv);
+
+        if (i > 0 && i + 1 < count)
+        {
+            rt_uint16_t prev_index = (rt_uint16_t)((oldest + start_offset + i - 1) % APP_BREATH_RING_SIZE);
+            rt_uint16_t next_index = (rt_uint16_t)((oldest + start_offset + i + 1) % APP_BREATH_RING_SIZE);
+            rt_int32_t prev_filtered = g_breath_filtered_ring[prev_index];
+            rt_int32_t next_filtered = g_breath_filtered_ring[next_index];
+            rt_int32_t local_min = filtered_mv;
+            rt_int32_t local_max = filtered_mv;
+            rt_size_t j;
+
+            for (j = (i > 10) ? (i - 10) : 0; j < count && j <= i + 10; j++)
+            {
+                rt_uint16_t local_index = (rt_uint16_t)((oldest + start_offset + j) % APP_BREATH_RING_SIZE);
+                rt_int32_t local_mv = g_breath_filtered_ring[local_index];
+
+                if (local_mv < local_min)
+                {
+                    local_min = local_mv;
+                }
+                if (local_mv > local_max)
+                {
+                    local_max = local_mv;
+                }
+            }
+
+            if ((last_motion_i == APP_BREATH_RING_SIZE ||
+                 i - last_motion_i >= APP_BREATH_MOTION_MIN_GAP) &&
+                ((filtered_mv >= prev_filtered && filtered_mv > next_filtered &&
+                  filtered_mv - local_min >= APP_BREATH_MOTION_PROM_MV) ||
+                 (filtered_mv <= prev_filtered && filtered_mv < next_filtered &&
+                  local_max - filtered_mv >= APP_BREATH_MOTION_PROM_MV)))
+            {
+                stats->motion_count++;
+                last_motion_i = i;
+            }
+        }
     }
 
     stats->count = count;
@@ -321,9 +359,11 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     stats->pp_mv = stats->max_mv - stats->min_mv;
     stats->filtered_pp_mv = stats->filtered_max_mv - stats->filtered_min_mv;
     stats->energy_mv = energy_sum / (rt_int32_t)count;
+    stats->periodic = (stats->motion_count >= APP_BREATH_PERIODIC_MIN_COUNT &&
+                       stats->motion_count <= APP_BREATH_PERIODIC_MAX_COUNT) ? RT_TRUE : RT_FALSE;
     stats->active = (stats->filtered_pp_mv >= APP_BREATH_ACTIVE_PP_MV ||
                      stats->energy_mv >= APP_BREATH_ACTIVE_ENERGY_MV) ? RT_TRUE : RT_FALSE;
-    if (stats->active)
+    if (stats->active && window <= APP_BREATH_ACTIVITY_WINDOW)
     {
         g_breath_last_active_tick = rt_tick_get();
     }
@@ -394,7 +434,7 @@ static void breath_stats_cmd(int argc, char **argv)
         return;
     }
 
-    rt_kprintf("[app][breath] count=%u base_mv=%d min_mv=%d max_mv=%d pp_mv=%d filtered_pp_mv=%d energy_mv=%d active=%d apnea_seconds=%d state=%s\r\n",
+    rt_kprintf("[app][breath] count=%u base_mv=%d min_mv=%d max_mv=%d pp_mv=%d filtered_pp_mv=%d energy_mv=%d motion_count=%d periodic=%d active=%d apnea_seconds=%d state=%s\r\n",
                (unsigned int)stats.count,
                stats.base_mv,
                stats.min_mv,
@@ -402,6 +442,8 @@ static void breath_stats_cmd(int argc, char **argv)
                stats.pp_mv,
                stats.filtered_pp_mv,
                stats.energy_mv,
+               stats.motion_count,
+               stats.periodic ? 1 : 0,
                stats.active ? 1 : 0,
                stats.apnea_seconds,
                app_breath_state_name(stats.state));

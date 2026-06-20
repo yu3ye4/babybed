@@ -175,6 +175,8 @@ def append_breath(topic: str, payload: bytes) -> None:
         "pp_mv": data.get("pp_mv"),
         "filtered_pp_mv": data.get("filtered_pp_mv"),
         "energy_mv": data.get("energy_mv"),
+        "motion_count": data.get("motion_count"),
+        "periodic": bool(data.get("periodic")),
         "active": bool(data.get("active")),
         "apnea_seconds": data.get("apnea_seconds"),
         "state": data.get("state"),
