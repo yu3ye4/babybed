@@ -18,6 +18,7 @@ typedef struct {
     int32_t  cmd_temp_max;
     int32_t  cmd_humi_min;
     int32_t  cmd_humi_max;
+    int32_t  cmd_ai_mode;
 } shared_data_t;
 
 #endif /* SHARED_DATA_H__ */

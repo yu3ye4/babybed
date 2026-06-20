@@ -62,6 +62,20 @@ void app_ipc_put_command(const char *key, rt_int32_t val_centi)
                key, val_centi / 100, val_centi % 100);
 }
 
+void app_ipc_put_ai_mode(rt_int32_t mode)
+{
+    if (g_shm == RT_NULL)
+        return;
+
+    g_shm->cmd_ai_mode = mode;
+
+    __asm__ volatile("dsb 0xF" ::: "memory");
+    g_shm->cmd_version++;
+    __asm__ volatile("dsb 0xF" ::: "memory");
+
+    rt_kprintf("[ipc] ai mode command sent: %d\r\n", (int)mode);
+}
+
 #ifdef RT_USING_MSH
 static void app_ipc_dump(int argc, char **argv)
 {

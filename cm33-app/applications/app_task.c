@@ -7,6 +7,8 @@
 #include "vision_i2c.h"
 #include "app_aht20.h"
 #include "app_ipc.h"
+#include "ai_model.h"
+#include "app_ai_mode.h"
 
 #define APP_LED_PIN                  GET_PIN(16, 5)
 
@@ -149,6 +151,7 @@ static void th_fusion_entry(void *parameter)
     app_risk_msg_t risk_msg;
     app_risk_result_t risk;
     vision_status_t vision_status;
+    app_ai_mode_t ai_mode;
     char frame_text[APP_PROTO_MAX_TEXT_LEN];
     rt_size_t text_len;
     rt_ssize_t recv_len;
@@ -178,17 +181,42 @@ static void th_fusion_entry(void *parameter)
         }
 
         app_ipc_get_commands();
+        ai_mode = app_ai_mode_get();
 
         risk = app_risk_eval_env(&env_msg.env);
 
-        if (vision_i2c_get_status(&vision_status) == RT_EOK)
+        if (ai_mode == APP_AI_MODE_EXTERNAL_VISION && vision_i2c_get_status(&vision_status) == RT_EOK)
         {
             risk = app_risk_fusion_with_vision(risk, &vision_status);
             text_len = app_proto_format_uplink_with_vision(frame_text,
                                                            sizeof(frame_text),
                                                            &env_msg.env,
                                                            &risk,
-                                                           &vision_status);
+                                                           &vision_status,
+                                                           ai_mode);
+        }
+        else if (ai_mode == APP_AI_MODE_LOCAL_MODEL)
+        {
+            if (risk.reason == RT_NULL || rt_strcmp(risk.reason, "normal") == 0)
+            {
+                risk.reason = "local_ai_model_linked";
+            }
+
+            text_len = app_proto_format_uplink_with_vision(frame_text,
+                                                           sizeof(frame_text),
+                                                           &env_msg.env,
+                                                           &risk,
+                                                           RT_NULL,
+                                                           ai_mode);
+        }
+        else if (ai_mode == APP_AI_MODE_EXTERNAL_VISION)
+        {
+            text_len = app_proto_format_uplink_with_vision(frame_text,
+                                                           sizeof(frame_text),
+                                                           &env_msg.env,
+                                                           &risk,
+                                                           RT_NULL,
+                                                           ai_mode);
         }
         else
         {
@@ -258,6 +286,12 @@ rt_err_t app_task_init(void)
     rt_thread_t th;
 
     app_ipc_debug_mark("app_task_init enter", 0x33000100UL);
+    rt_kprintf("[ai] model linked size=%lu input=%ux%ux%u\r\n",
+               (unsigned long)ai_model_get_size(),
+               (unsigned int)AI_MODEL_INPUT_WIDTH,
+               (unsigned int)AI_MODEL_INPUT_HEIGHT,
+               (unsigned int)AI_MODEL_INPUT_CHANNELS);
+    app_ai_mode_init();
 
     g_mq_env = rt_mq_create("mq_env", sizeof(app_env_msg_t), APP_ENV_MQ_ITEM_COUNT, RT_IPC_FLAG_FIFO);
     if (g_mq_env == RT_NULL)
