@@ -239,6 +239,7 @@
       <div class="panel">
         <div class="metric-label" data-i18n="visionStatus">视觉状态</div>
         <div id="vision" class="metric-value">--</div>
+        <div id="visionDetail" class="metric-sub">confidence -- risk --</div>
         <div id="face" class="metric-sub">face --</div>
       </div>
     </section>
@@ -660,8 +661,14 @@
       document.getElementById("risk").textContent = latest ? latest.risk : "--";
       document.getElementById("risk").className = "metric-value " + riskClass(latest ? latest.risk : 0);
       document.getElementById("score").textContent = latest ? `score ${latest.score}` : "score --";
-      document.getElementById("vision").textContent = value(data, "vision");
-      document.getElementById("face").textContent = `face ${value(data, "face")} stable ${value(data, "face_stable")}`;
+      const posture = value(data, "vision_posture");
+      const visionConfidence = value(data, "vision_confidence");
+      const visionRisk = value(data, "vision_risk");
+      document.getElementById("vision").textContent = posture !== "--" ? posture : value(data, "vision");
+      document.getElementById("visionDetail").textContent = `confidence ${visionConfidence}% risk ${visionRisk}`;
+      document.getElementById("visionDetail").className = "metric-sub " + riskClass(visionRisk);
+      document.getElementById("face").textContent =
+        `vision ${value(data, "vision")} face ${value(data, "face")} stable ${value(data, "face_stable")}`;
 
       if (status.analysis) {
         renderAnalysis(status.analysis);
@@ -679,7 +686,7 @@
           <td>${value(d, "temp")}</td>
           <td>${value(d, "humi")}</td>
           <td class="${riskClass(item.risk)}">${item.risk} / ${item.score}</td>
-          <td>${value(d, "vision")} / ${value(d, "face")}</td>
+          <td>${value(d, "vision_posture")} / ${value(d, "vision_confidence")}% / risk ${value(d, "vision_risk")}</td>
           <td class="raw" title="${item.raw || ""}">${item.raw || ""}</td>
         `;
         body.appendChild(tr);

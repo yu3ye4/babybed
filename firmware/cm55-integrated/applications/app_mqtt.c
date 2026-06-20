@@ -50,6 +50,8 @@ static rt_bool_t g_mqtt_need_reconnect = RT_FALSE;
 static rt_bool_t g_mqtt_net_ready = RT_FALSE;
 static rt_bool_t g_mqtt_first_telemetry_logged = RT_FALSE;
 static rt_bool_t g_mqtt_first_breath_logged = RT_FALSE;
+static rt_bool_t g_mqtt_vision_ready = RT_FALSE;
+static char g_mqtt_vision_payload[APP_MQTT_UPLINK_BUF_SIZE];
 static int g_mqtt_raw_sock = -1;
 static int g_mqtt_raw_last_error = 0;
 
@@ -574,6 +576,65 @@ static void mqtt_append_breath_stats(char *buf, rt_size_t size)
                 app_breath_state_name(stats.state));
 }
 
+static rt_bool_t mqtt_cache_vision_payload(void)
+{
+    char uplink_buf[APP_MQTT_UPLINK_BUF_SIZE];
+
+    if (app_ipc_read_uplink(uplink_buf, sizeof(uplink_buf)) != RT_EOK)
+    {
+        return RT_FALSE;
+    }
+
+    if (strstr(uplink_buf, "vision=") == RT_NULL)
+    {
+        return RT_FALSE;
+    }
+
+    rt_snprintf(g_mqtt_vision_payload, sizeof(g_mqtt_vision_payload), "%s", uplink_buf);
+    g_mqtt_vision_ready = RT_TRUE;
+
+    return RT_TRUE;
+}
+
+static void mqtt_append_vision_payload(char *buf, rt_size_t size)
+{
+    rt_size_t len;
+    rt_size_t vision_len;
+
+    if (buf == RT_NULL || size == 0)
+    {
+        return;
+    }
+
+    mqtt_cache_vision_payload();
+
+    if (!g_mqtt_vision_ready)
+    {
+        return;
+    }
+
+    len = rt_strlen(buf);
+    vision_len = rt_strlen(g_mqtt_vision_payload);
+    if (vision_len == 0 || len >= size)
+    {
+        return;
+    }
+
+    if (len == 0)
+    {
+        rt_snprintf(buf, size, "%s", g_mqtt_vision_payload);
+        return;
+    }
+
+    if (len + 1 + vision_len >= size)
+    {
+        APP_LOG("mqtt", "skip vision payload, telemetry full");
+        return;
+    }
+
+    rt_snprintf(buf + len, size - len, ",%s", g_mqtt_vision_payload);
+}
+
 static void mqtt_publish_breath_waveform(void)
 {
     rt_int32_t samples[APP_MQTT_BREATH_POINTS];
@@ -715,6 +776,7 @@ static void mqtt_publish_ipc_telemetry(void)
                     humi_centi / 100,
                     abs(humi_centi % 100));
         mqtt_append_breath_stats(uplink_buf, sizeof(uplink_buf));
+        mqtt_append_vision_payload(uplink_buf, sizeof(uplink_buf));
 
         ret = mqtt_raw_publish(APP_MQTT_TOPIC_TELEMETRY, uplink_buf);
         if (ret != PAHO_SUCCESS)
@@ -729,7 +791,9 @@ static void mqtt_publish_ipc_telemetry(void)
         return;
     }
 
-    if (app_ipc_read_uplink(uplink_buf, sizeof(uplink_buf)) == RT_EOK)
+    uplink_buf[0] = '\0';
+    mqtt_append_vision_payload(uplink_buf, sizeof(uplink_buf));
+    if (uplink_buf[0] != '\0')
     {
         mqtt_append_breath_stats(uplink_buf, sizeof(uplink_buf));
         ret = mqtt_raw_publish(APP_MQTT_TOPIC_TELEMETRY, uplink_buf);
