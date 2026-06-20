@@ -46,6 +46,7 @@ state_lock = Lock()
 mqtt_connected = False
 mqtt_client: mqtt.Client | None = None
 breath_latest: dict[str, Any] | None = None
+telemetry_latest: dict[str, Any] | None = None
 analysis_cache: dict[str, Any] = {
     "mode": "none",
     "text": "暂无分析结果",
@@ -116,10 +117,44 @@ def normalize_record(topic: str, payload: bytes) -> dict[str, Any]:
     }
 
 
+def int_value(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def merge_telemetry_latest(
+    current: dict[str, Any] | None, record: dict[str, Any]
+) -> dict[str, Any]:
+    merged_data: dict[str, Any] = {}
+    if current:
+        data = current.get("data", {})
+        if isinstance(data, dict):
+            merged_data.update(data)
+
+    record_data = record.get("data", {})
+    if isinstance(record_data, dict):
+        merged_data.update(record_data)
+
+    risk = max(int_value(merged_data.get("risk")), int_value(merged_data.get("vision_risk")))
+    score = int_value(merged_data.get("score"))
+
+    merged = dict(record)
+    merged["data"] = merged_data
+    merged["risk"] = risk
+    merged["score"] = score
+    merged["alert"] = risk >= 2 or score >= 55
+    return merged
+
+
 def append_history(record: dict[str, Any]) -> None:
+    global telemetry_latest
+
     line = json.dumps(record, ensure_ascii=False)
     with state_lock:
         history.append(record)
+        telemetry_latest = merge_telemetry_latest(telemetry_latest, record)
     with HISTORY_FILE.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
 
@@ -188,17 +223,22 @@ def append_breath(topic: str, payload: bytes) -> None:
 
 
 def load_history() -> None:
+    global telemetry_latest
+
     if not HISTORY_FILE.exists():
         return
 
     lines = HISTORY_FILE.read_text(encoding="utf-8").splitlines()[-500:]
     with state_lock:
         history.clear()
+        telemetry_latest = None
         for line in lines:
             try:
-                history.append(json.loads(line))
+                record = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            history.append(record)
+            telemetry_latest = merge_telemetry_latest(telemetry_latest, record)
 
 
 def build_rule_analysis(records: list[dict[str, Any]], lang: str = "zh") -> str:
@@ -477,7 +517,7 @@ async def index() -> FileResponse:
 @app.get("/api/status")
 async def status() -> dict[str, Any]:
     with state_lock:
-        latest = history[-1] if history else None
+        latest = telemetry_latest
         count = len(history)
     return {
         "mqtt_connected": mqtt_connected,
