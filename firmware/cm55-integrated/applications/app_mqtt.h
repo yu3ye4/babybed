@@ -16,7 +16,7 @@ extern "C" {
 #define APP_MQTT_TOPIC_EVENT        "babybed/" APP_MQTT_DEVICE_ID "/event"
 #define APP_MQTT_TOPIC_COMMAND      "babybed/" APP_MQTT_DEVICE_ID "/command"
 
-#define APP_MQTT_UPLINK_BUF_SIZE    512
+#define APP_MQTT_UPLINK_BUF_SIZE    768
 #define APP_MQTT_EVENT_BUF_SIZE     256
 
 #ifndef APP_MQTT_WAIT_XIAOZHI_MS

@@ -20,6 +20,7 @@
 #include "app_breath.h"
 #include "app_alert.h"
 #include "app_vision_uvc.h"
+#include "app_env_monitor.h"
 
 /*****************************************************************************
  * Macro Definitions
@@ -72,6 +73,7 @@ int main(void)
     {
         APP_LOG("boot", "app_sensor_aht20_init failed");
     }
+    app_env_monitor_init();
 
     if (app_ads1115_init() != RT_EOK)
     {

@@ -64,7 +64,7 @@
     .dot.on { background: var(--ok); }
     .grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
     }
     .panel {
@@ -241,12 +241,12 @@
       <div class="panel">
         <div class="metric-label" data-i18n="temperature">温度</div>
         <div id="temp" class="metric-value">--</div>
-        <div class="metric-sub" data-i18n="celsius">摄氏度</div>
+        <div id="tempDetail" class="metric-sub">env --</div>
       </div>
       <div class="panel">
         <div class="metric-label" data-i18n="humidity">湿度</div>
         <div id="humi" class="metric-value">--</div>
-        <div class="metric-sub" data-i18n="percent">百分比</div>
+        <div id="humiDetail" class="metric-sub">env --</div>
       </div>
       <div class="panel">
         <div class="metric-label" data-i18n="riskLevel">风险等级</div>
@@ -258,6 +258,12 @@
         <div id="vision" class="metric-value">--</div>
         <div id="visionDetail" class="metric-sub">confidence -- risk --</div>
         <div id="face" class="metric-sub">face --</div>
+      </div>
+      <div class="panel">
+        <div class="metric-label" data-i18n="wetStatus">尿湿疑似</div>
+        <div id="wetSuspect" class="metric-value">--</div>
+        <div id="wetDetail" class="metric-sub">score -- delta --</div>
+        <div id="wetReason" class="metric-sub">reason --</div>
       </div>
     </section>
 
@@ -364,6 +370,7 @@
         percent: "百分比",
         riskLevel: "风险等级",
         visionStatus: "视觉状态",
+        wetStatus: "尿湿疑似",
         cameraPreview: "摄像头画面",
         history: "Telemetry 历史",
         refresh: "刷新",
@@ -405,6 +412,7 @@
         percent: "Percent",
         riskLevel: "Risk Level",
         visionStatus: "Vision Status",
+        wetStatus: "Wetness",
         cameraPreview: "Camera Preview",
         history: "Telemetry History",
         refresh: "Refresh",
@@ -670,6 +678,12 @@
       const data = latest ? latest.data : {};
       document.getElementById("temp").textContent = value(data, "temp");
       document.getElementById("humi").textContent = value(data, "humi");
+      document.getElementById("tempDetail").textContent =
+        `env ${value(data, "env_reason")} risk ${value(data, "env_risk")}`;
+      document.getElementById("tempDetail").className = "metric-sub " + riskClass(value(data, "env_risk"));
+      document.getElementById("humiDetail").textContent =
+        `score ${value(data, "env_score")} wet delta ${value(data, "wet_delta_humi")}%`;
+      document.getElementById("humiDetail").className = "metric-sub " + riskClass(value(data, "env_risk"));
       document.getElementById("risk").textContent = latest ? latest.risk : "--";
       document.getElementById("risk").className = "metric-value " + riskClass(latest ? latest.risk : 0);
       document.getElementById("score").textContent = latest ? `score ${latest.score}` : "score --";
@@ -681,6 +695,12 @@
       document.getElementById("visionDetail").className = "metric-sub " + riskClass(visionRisk);
       document.getElementById("face").textContent =
         `vision ${value(data, "vision")} face ${value(data, "face")} stable ${value(data, "face_stable")}`;
+      document.getElementById("wetSuspect").textContent = value(data, "wet_suspect");
+      document.getElementById("wetSuspect").className =
+        "metric-value " + (Number(value(data, "wet_suspect")) ? "risk2" : "risk0");
+      document.getElementById("wetDetail").textContent =
+        `score ${value(data, "wet_score")} delta ${value(data, "wet_delta_humi")}% ${value(data, "wet_seconds")}s`;
+      document.getElementById("wetReason").textContent = `reason ${value(data, "wet_reason")}`;
 
       const preview = document.getElementById("visionPreview");
       const previewUrl = status.vision_preview_url || "";

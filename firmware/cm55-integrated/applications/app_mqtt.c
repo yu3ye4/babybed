@@ -14,6 +14,7 @@
 #include "app_sensor_aht20.h"
 #include "app_alert.h"
 #include "app_breath.h"
+#include "app_env_monitor.h"
 
 #define APP_MQTT_THREAD_STACK_SIZE   4096
 #define APP_MQTT_THREAD_PRIORITY     15
@@ -182,6 +183,7 @@ static void mqtt_command_cb(MQTTClient *c, MessageData *data)
         {
             *eq = '\0';
             val = (rt_int32_t)(atof(eq + 1) * 100.0);
+            app_env_monitor_set_threshold(kv, val);
             app_ipc_put_command(kv, val);
         }
     }
@@ -755,6 +757,9 @@ static void mqtt_publish_ipc_telemetry(void)
     char uplink_buf[APP_MQTT_UPLINK_BUF_SIZE];
     rt_int32_t temp_centi;
     rt_int32_t humi_centi;
+    rt_int32_t wet_delta_abs;
+    const char *wet_delta_sign;
+    app_env_status_t env_status;
     int ret;
 
     if (!g_mqtt_online)
@@ -769,12 +774,28 @@ static void mqtt_publish_ipc_telemetry(void)
 
     if (app_sensor_aht20_read_centi(&temp_centi, &humi_centi) == RT_EOK)
     {
+        app_env_monitor_evaluate(temp_centi, humi_centi, &env_status);
+        wet_delta_abs = abs(env_status.wet_delta_humi_centi);
+        wet_delta_sign = env_status.wet_delta_humi_centi < 0 ? "-" : "";
         rt_snprintf(uplink_buf, sizeof(uplink_buf),
-                    "temp=%d.%02d,humi=%d.%02d,risk=0,score=0,reason=m55_aht20",
+                    "temp=%d.%02d,humi=%d.%02d,risk=%d,score=%d,reason=%s,env_risk=%d,env_score=%d,env_reason=%s,wet_suspect=%d,wet_score=%d,wet_delta_humi=%s%d.%02d,wet_seconds=%d,wet_reason=%s",
                     temp_centi / 100,
                     abs(temp_centi % 100),
                     humi_centi / 100,
-                    abs(humi_centi % 100));
+                    abs(humi_centi % 100),
+                    env_status.total_risk,
+                    env_status.total_score,
+                    env_status.total_reason,
+                    env_status.env_risk,
+                    env_status.env_score,
+                    env_status.env_reason,
+                    env_status.wet_suspect,
+                    env_status.wet_score,
+                    wet_delta_sign,
+                    wet_delta_abs / 100,
+                    wet_delta_abs % 100,
+                    env_status.wet_seconds,
+                    env_status.wet_reason);
         mqtt_append_breath_stats(uplink_buf, sizeof(uplink_buf));
         mqtt_append_vision_payload(uplink_buf, sizeof(uplink_buf));
 
