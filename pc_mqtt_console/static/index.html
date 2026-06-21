@@ -215,6 +215,55 @@
       color: var(--muted);
       font-size: 13px;
     }
+    .cry-panel {
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+    .cry-panel.active {
+      border-color: #dc2626;
+      background: #fef2f2;
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
+    }
+    .cry-alert-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .cry-alert-head .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .cry-panel.active .badge {
+      background: #dc2626;
+      color: white;
+    }
+    .cry-status {
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    .cry-panel.active .cry-status {
+      color: #dc2626;
+    }
+    .cry-message {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .cry-panel.active .cry-message {
+      color: #991b1b;
+      font-weight: 700;
+    }
     .risk0 { color: var(--ok); }
     .risk1 { color: var(--warn); }
     .risk2, .risk3 { color: var(--danger); }
@@ -331,19 +380,14 @@
       </div>
 
       <div>
-        <div class="panel">
-          <div style="font-weight: 700; margin-bottom: 12px;" data-i18n="thresholdCommand">阈值命令</div>
-          <div class="row">
-            <select id="cmdKey">
-              <option value="temp_min">temp_min</option>
-              <option value="temp_max">temp_max</option>
-              <option value="humi_min">humi_min</option>
-              <option value="humi_max">humi_max</option>
-            </select>
-            <input id="cmdValue" type="number" step="0.1" value="30.0" style="width: 110px;">
-            <button onclick="sendThreshold()" data-i18n="send">发送</button>
+        <div id="cryPanel" class="panel cry-panel">
+          <div class="cry-alert-head">
+            <strong data-i18n="cryAlert">婴儿哭声警报</strong>
+            <span id="cryBadge" class="badge">standby</span>
           </div>
-          <div id="cmdResult" class="metric-sub"></div>
+          <div id="cryStatus" class="cry-status" data-i18n="cryQuiet">未检测到哭声</div>
+          <div id="cryMessage" class="cry-message" data-i18n="cryQuietMessage">等待哭声检测结果</div>
+          <div id="cryMeta" class="metric-sub">confidence --</div>
         </div>
 
         <div class="panel" style="margin-top: 12px;">
@@ -379,6 +423,11 @@
         vision: "视觉",
         rawData: "原始数据",
         thresholdCommand: "阈值命令",
+        cryAlert: "婴儿哭声警报",
+        cryQuiet: "未检测到哭声",
+        cryQuietMessage: "等待哭声检测结果",
+        cryDetected: "婴儿哭了",
+        cryDetectedMessage: "请立即查看婴儿状态",
         send: "发送",
         sending: "发送中...",
         sent: "已发送",
@@ -421,6 +470,11 @@
         vision: "Vision",
         rawData: "Raw Data",
         thresholdCommand: "Threshold Command",
+        cryAlert: "Baby Crying Alert",
+        cryQuiet: "No crying detected",
+        cryQuietMessage: "Waiting for crying detection",
+        cryDetected: "Baby is crying",
+        cryDetectedMessage: "Check the baby immediately",
         send: "Send",
         sending: "Sending...",
         sent: "Sent",
@@ -446,6 +500,8 @@
       }
     };
     let lang = localStorage.getItem("babybed_lang") || "zh";
+    let cryAlertUntil = 0;
+    let cryLastConfidence = "--";
 
     function t(key) {
       return (i18n[lang] && i18n[lang][key]) || i18n.zh[key] || key;
@@ -481,6 +537,29 @@
       if (n >= 2) return "risk2";
       if (n === 1) return "risk1";
       return "risk0";
+    }
+
+    function updateCryAlert(latest, data) {
+      const raw = latest && latest.raw ? String(latest.raw) : "";
+      const isCurrentCry =
+        raw.includes("event=baby_crying") ||
+        raw.includes("reason=baby_crying") ||
+        value(data, "reason") === "baby_crying";
+
+      if (isCurrentCry) {
+        cryAlertUntil = Date.now() + 60000;
+        cryLastConfidence = value(data, "confidence");
+      }
+
+      const active = Date.now() < cryAlertUntil;
+      const remain = active ? Math.ceil((cryAlertUntil - Date.now()) / 1000) : 0;
+      document.getElementById("cryPanel").classList.toggle("active", active);
+      document.getElementById("cryBadge").textContent = active ? "ALERT" : "STANDBY";
+      document.getElementById("cryStatus").textContent = active ? t("cryDetected") : t("cryQuiet");
+      document.getElementById("cryMessage").textContent = active ? t("cryDetectedMessage") : t("cryQuietMessage");
+      document.getElementById("cryMeta").textContent = active
+        ? `confidence ${cryLastConfidence}% · ${remain}s`
+        : "confidence --";
     }
 
     function smoothValues(values, radius) {
@@ -701,6 +780,7 @@
       document.getElementById("wetDetail").textContent =
         `score ${value(data, "wet_score")} delta ${value(data, "wet_delta_humi")}% ${value(data, "wet_seconds")}s`;
       document.getElementById("wetReason").textContent = `reason ${value(data, "wet_reason")}`;
+      updateCryAlert(latest, data);
 
       const preview = document.getElementById("visionPreview");
       const previewUrl = status.vision_preview_url || "";
