@@ -31,6 +31,7 @@ MQTT_BREATH_TOPIC = os.getenv("MQTT_BREATH_TOPIC", "babybed/babybed_01/breath")
 MQTT_COMMAND_TOPIC = os.getenv("MQTT_COMMAND_TOPIC", "babybed/babybed_01/command")
 MQTT_AI_ANALYSIS_TOPIC = os.getenv("MQTT_AI_ANALYSIS_TOPIC", "babybed/babybed_01/ai/analysis")
 MQTT_AI_ALERT_TOPIC = os.getenv("MQTT_AI_ALERT_TOPIC", "babybed/babybed_01/ai/alert")
+VISION_PREVIEW_URL = os.getenv("VISION_PREVIEW_URL", "http://127.0.0.1:8765/video.mjpg")
 LLM_API_KEY = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL", "")
 LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
@@ -526,6 +527,7 @@ async def status() -> dict[str, Any]:
         "telemetry_topic": MQTT_TELEMETRY_TOPIC,
         "breath_topic": MQTT_BREATH_TOPIC,
         "command_topic": MQTT_COMMAND_TOPIC,
+        "vision_preview_url": VISION_PREVIEW_URL,
         "history_count": count,
         "latest": latest,
         "analysis": analysis_cache,

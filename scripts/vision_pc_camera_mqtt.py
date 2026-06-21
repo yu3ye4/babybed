@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import shutil
 import sys
 import threading
@@ -11,9 +12,9 @@ import time
 
 from vision_pc_camera_yolo import (
     frame_to_rgb,
+    import_cv2,
     open_camera,
     read_frame,
-    sleep_until_next,
     warmup_camera,
 )
 from vision_verify_yolo_tflite import (
@@ -30,6 +31,8 @@ DEFAULT_MODEL = "firmware/vision/models/baby_yolov5n_int8.tflite"
 DEFAULT_CLASSES = "firmware/vision/models/classes.txt"
 DEFAULT_BROKER = "127.0.0.1"
 DEFAULT_TOPIC = "babybed/babybed_01/telemetry"
+DEFAULT_PREVIEW_HOST = "127.0.0.1"
+DEFAULT_PREVIEW_PORT = 8765
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,6 +52,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--topic", default=DEFAULT_TOPIC, help="MQTT telemetry topic")
     parser.add_argument("--client-id", default="pc_camera_yolo", help="MQTT client id")
+    parser.add_argument("--preview-host", default=DEFAULT_PREVIEW_HOST, help="MJPEG preview host")
+    parser.add_argument(
+        "--preview-port",
+        type=int,
+        default=DEFAULT_PREVIEW_PORT,
+        help="MJPEG preview port; 0 disables preview",
+    )
+    parser.add_argument("--preview-fps", type=float, default=15.0, help="MJPEG preview FPS")
     return parser.parse_args()
 
 
@@ -166,6 +177,115 @@ def print_result(idx: int, result: dict, topic: str, payload: str) -> None:
     print(f"[mqtt] published topic={topic} payload={payload}")
 
 
+def default_result() -> dict:
+    return {
+        "posture": "unknown",
+        "confidence": 0,
+        "risk": 2,
+        "face": 0,
+        "face_stable": 0,
+        "reason": "pc_camera_yolo_no_detection",
+        "bbox": None,
+    }
+
+
+def draw_overlay(frame_bgr, result: dict):
+    cv2 = import_cv2()
+    output = frame_bgr.copy()
+    bbox = result.get("bbox")
+    risk = int(result.get("risk", 2) or 0)
+    color = (32, 128, 32) if risk <= 1 else (0, 165, 255) if risk == 2 else (0, 0, 220)
+
+    if isinstance(bbox, list) and len(bbox) == 4:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        cv2.rectangle(output, (x1, y1), (x2, y2), color, 2)
+
+    label = (
+        f"{result.get('posture', 'unknown')} "
+        f"{result.get('confidence', 0)}% risk {risk}"
+    )
+    cv2.rectangle(output, (8, 8), (8 + max(260, len(label) * 12), 42), (0, 0, 0), -1)
+    cv2.putText(
+        output,
+        label,
+        (18, 32),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    return output
+
+
+class PreviewState:
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.jpeg: bytes | None = None
+
+    def update(self, frame_bgr, result: dict) -> None:
+        cv2 = import_cv2()
+        preview = draw_overlay(frame_bgr, result)
+        ok, encoded = cv2.imencode(".jpg", preview, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
+        if not ok:
+            return
+        with self.lock:
+            self.jpeg = encoded.tobytes()
+
+    def get(self) -> bytes | None:
+        with self.lock:
+            return self.jpeg
+
+
+def make_preview_handler(state: PreviewState, fps: float):
+    delay = 1.0 / fps if fps > 0 else 0.1
+
+    class PreviewHandler(BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args) -> None:
+            return
+
+        def do_GET(self) -> None:
+            if self.path not in ("/", "/video.mjpg"):
+                self.send_error(404)
+                return
+
+            self.send_response(200)
+            self.send_header("Age", "0")
+            self.send_header("Cache-Control", "no-cache, private")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+            self.end_headers()
+
+            while True:
+                jpeg = state.get()
+                if jpeg is None:
+                    time.sleep(delay)
+                    continue
+                try:
+                    self.wfile.write(b"--frame\r\n")
+                    self.wfile.write(b"Content-Type: image/jpeg\r\n")
+                    self.wfile.write(f"Content-Length: {len(jpeg)}\r\n\r\n".encode("ascii"))
+                    self.wfile.write(jpeg)
+                    self.wfile.write(b"\r\n")
+                    time.sleep(delay)
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    break
+
+    return PreviewHandler
+
+
+def start_preview_server(host: str, port: int, fps: float) -> tuple[ThreadingHTTPServer | None, PreviewState | None]:
+    if port <= 0:
+        return None, None
+
+    state = PreviewState()
+    server = ThreadingHTTPServer((host, port), make_preview_handler(state, fps))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"[preview] http://{host}:{port}/video.mjpg")
+    return server, state
+
+
 def main() -> int:
     args = parse_args()
     if args.count < 0:
@@ -177,11 +297,19 @@ def main() -> int:
     if args.interval < 0:
         print("[error] --interval must be >= 0", file=sys.stderr)
         return 2
+    if args.preview_port < 0:
+        print("[error] --preview-port must be >= 0", file=sys.stderr)
+        return 2
+    if args.preview_fps <= 0:
+        print("[error] --preview-fps must be > 0", file=sys.stderr)
+        return 2
 
     classes = load_classes(args.classes)
     tmp_dir = None
     cap = None
     mqtt_client = None
+    preview_server = None
+    preview_state = None
     try:
         interpreter, tmp_dir = load_interpreter(args.model)
         interpreter.allocate_tensors()
@@ -197,35 +325,49 @@ def main() -> int:
             print("[warn] this script decodes only the first output tensor")
 
         mqtt_client = connect_mqtt(args.broker, args.port, args.client_id)
+        preview_server, preview_state = start_preview_server(
+            args.preview_host, args.preview_port, args.preview_fps
+        )
         cap = open_camera(args.camera)
         warmup_camera(cap, args.warmup)
 
         input_detail = input_details[0]
         idx = 0
+        latest_result = default_result()
+        next_infer_at = time.monotonic()
+        frame_delay = 1.0 / args.preview_fps
         while args.count == 0 or idx < args.count:
-            started = time.monotonic()
-            idx += 1
             frame_bgr = read_frame(cap)
-            image_rgb = frame_to_rgb(frame_bgr)
-            input_tensor = prepare_image_input(image_rgb, input_detail)
-            output, output_detail = run_inference(interpreter, input_tensor)
-            detections = decode_yolo(
-                output=output,
-                output_detail=output_detail,
-                classes=classes,
-                image_w=image_rgb.shape[1],
-                image_h=image_rgb.shape[0],
-                conf_thresh=args.conf,
-                iou_thresh=args.iou,
-                top_k=args.top_k,
-            )
-            payload, result = build_payload(detections)
-            publish_payload(mqtt_client, args.topic, payload)
-            print_result(idx, result, args.topic, payload)
-            sleep_until_next(started, args.interval)
+            now = time.monotonic()
+            if args.interval == 0 or now >= next_infer_at:
+                idx += 1
+                image_rgb = frame_to_rgb(frame_bgr)
+                input_tensor = prepare_image_input(image_rgb, input_detail)
+                output, output_detail = run_inference(interpreter, input_tensor)
+                detections = decode_yolo(
+                    output=output,
+                    output_detail=output_detail,
+                    classes=classes,
+                    image_w=image_rgb.shape[1],
+                    image_h=image_rgb.shape[0],
+                    conf_thresh=args.conf,
+                    iou_thresh=args.iou,
+                    top_k=args.top_k,
+                )
+                payload, latest_result = build_payload(detections)
+                publish_payload(mqtt_client, args.topic, payload)
+                print_result(idx, latest_result, args.topic, payload)
+                next_infer_at = time.monotonic() + args.interval
+
+            if preview_state is not None:
+                preview_state.update(frame_bgr, latest_result)
+            time.sleep(frame_delay)
 
         return 0
     finally:
+        if preview_server is not None:
+            preview_server.shutdown()
+            preview_server.server_close()
         if cap is not None:
             cap.release()
         if mqtt_client is not None:
