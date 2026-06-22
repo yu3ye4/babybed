@@ -21,6 +21,9 @@ void iot_initialize() {
     rt_kprintf("Registering Led...\n");
     manager.AddThing(iot::CreateThing("Led"));
 
+    rt_kprintf("Registering Environment...\n");
+    manager.AddThing(iot::CreateThing("Environment"));
+
     McpServer::GetInstance().AddCommonTools();
 }
 
