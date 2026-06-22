@@ -7,6 +7,7 @@
 #endif
 
 static aht10_device_t g_aht20_dev = RT_NULL;
+static rt_mutex_t g_aht20_lock = RT_NULL;
 
 static rt_int32_t sensor_float_to_centi(float value)
 {
@@ -30,6 +31,16 @@ rt_err_t app_sensor_aht20_init(void)
         return RT_EOK;
     }
 
+    if (g_aht20_lock == RT_NULL)
+    {
+        g_aht20_lock = rt_mutex_create("aht20", RT_IPC_FLAG_PRIO);
+        if (g_aht20_lock == RT_NULL)
+        {
+            rt_kprintf("[app][aht20] mutex create failed\r\n");
+            return -RT_ENOMEM;
+        }
+    }
+
     g_aht20_dev = aht10_init(PKG_AHT10_I2C_BUS_NAME);
     if (g_aht20_dev == RT_NULL)
     {
@@ -45,6 +56,7 @@ rt_err_t app_sensor_aht20_read(float *temperature, float *humidity)
 {
     float temp;
     float humi;
+    rt_err_t ret = RT_EOK;
 
     if (temperature == RT_NULL || humidity == RT_NULL)
     {
@@ -56,17 +68,26 @@ rt_err_t app_sensor_aht20_read(float *temperature, float *humidity)
         return -RT_ERROR;
     }
 
+    if (rt_mutex_take(g_aht20_lock, rt_tick_from_millisecond(1000)) != RT_EOK)
+    {
+        return -RT_ETIMEOUT;
+    }
+
     temp = aht10_read_temperature(g_aht20_dev);
     humi = aht10_read_humidity(g_aht20_dev);
 
     if (temp < -40.0f || temp > 85.0f || humi < 0.0f || humi > 100.0f)
     {
-        return -RT_ERROR;
+        ret = -RT_ERROR;
+        goto out;
     }
 
     *temperature = temp;
     *humidity = humi;
-    return RT_EOK;
+
+out:
+    rt_mutex_release(g_aht20_lock);
+    return ret;
 }
 
 rt_err_t app_sensor_aht20_read_centi(rt_int32_t *temp_centi, rt_int32_t *humi_centi)
