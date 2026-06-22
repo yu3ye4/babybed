@@ -630,7 +630,16 @@
       if (!points || points.length < 2) {
         ctx.fillStyle = "#64748b";
         ctx.font = "13px Arial";
-        ctx.fillText("waiting for breath data", pad.left, pad.top + 24);
+        ctx.fillText(latest ? "near-flat signal, waiting for waveform points" : "waiting for breath data", pad.left, pad.top + 24);
+        if (latest) {
+          const zeroY = pad.top + plotH / 2;
+          ctx.strokeStyle = "#0f766e";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(pad.left, zeroY);
+          ctx.lineTo(width - pad.right, zeroY);
+          ctx.stroke();
+        }
         return;
       }
 
@@ -645,7 +654,7 @@
       const displayGain = 2.5;
       const rawAbs95 = percentile(rawValues.map(v => Math.abs(v)), 0.95);
       const filteredAbs95 = percentile(filteredValues.map(v => Math.abs(v) * displayGain), 0.95);
-      const maxAbs = Math.max(8, rawAbs95 || 0, filteredAbs95 || 0);
+      const maxAbs = Math.max(3, rawAbs95 || 0, filteredAbs95 || 0);
       const scaleAbs = Math.ceil(maxAbs * 1.35);
       const min = -scaleAbs;
       const max = scaleAbs;
@@ -704,7 +713,8 @@
       ctx.stroke();
 
       ctx.fillStyle = "#64748b";
-      ctx.fillText(`${points.length} pts, raw gray, filtered green x${displayGain} display gain`, pad.left, height - 8);
+      const flatText = Number(latest && latest.pp_mv) <= 3 ? ", near-flat" : "";
+      ctx.fillText(`${points.length} pts${flatText}, raw gray, filtered green x${displayGain} display gain`, pad.left, height - 8);
     }
 
     async function refreshBreath() {
@@ -743,8 +753,8 @@
 
         drawBreath(points, latest);
       } catch (err) {
-        document.getElementById("breathMeta").textContent = "breath data unavailable";
-        drawBreath([], null);
+        console.error("refreshBreath failed", err);
+        document.getElementById("breathMeta").textContent = "breath data unavailable, keeping last chart";
       }
     }
 
