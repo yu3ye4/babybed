@@ -8,12 +8,18 @@
 
 extern "C" {
 #include "drv_es8388.h"
+#include "../../app_sensor_aht20.h"
 }
 
 extern xiaozhi_app_t g_app;   // 声明全局应用结构体
 #define TAG "MCP"
 #define BOARD_NAME "psocedge84"
 #define DEFAULT_TOOLCALL_STACK_SIZE 6144
+
+static rt_int32_t mcp_abs_i32(rt_int32_t value)
+{
+    return (value < 0) ? -value : value;
+}
 
 McpServer::McpServer()
 {
@@ -138,6 +144,30 @@ void McpServer::AddCommonTools()
             return true;
         });
     }
+
+    AddTool("self.environment.get_temperature_humidity",
+            "Get the current real-time room temperature and humidity from the local AHT20 sensor. Use this when the user asks to report current temperature, humidity, or room environment.",
+            PropertyList(),
+            [ = ](const PropertyList &) -> ReturnValue
+    {
+        rt_int32_t temp_centi;
+        rt_int32_t humi_centi;
+        char report[128];
+
+        if (app_sensor_aht20_read_centi(&temp_centi, &humi_centi) != RT_EOK)
+        {
+            return std::string("当前温湿度传感器读取失败，请稍后再试。");
+        }
+
+        snprintf(report,
+                 sizeof(report),
+                 "当前温度%d.%02d摄氏度，湿度%d.%02d%%。",
+                 temp_centi / 100,
+                 mcp_abs_i32(temp_centi % 100),
+                 humi_centi / 100,
+                 mcp_abs_i32(humi_centi % 100));
+        return std::string(report);
+    });
 #endif
     // Restore the original tools list to the end of the tools list
     tools_.insert(tools_.end(), original_tools.begin(), original_tools.end());
