@@ -589,9 +589,9 @@
     }
 
     function breathStateLabel(state) {
-      if (state === "normal") return currentLang === "zh" ? "呼吸正常" : "Breathing normal";
-      if (state === "weak_or_missing") return currentLang === "zh" ? "压力不足" : "Weak pressure";
-      if (state === "apnea_suspect") return currentLang === "zh" ? "呼吸停止" : "Breathing stopped";
+      if (state === "normal") return lang === "zh" ? "\u547c\u5438\u6b63\u5e38" : "Breathing normal";
+      if (state === "weak_or_missing") return lang === "zh" ? "\u538b\u529b\u4e0d\u8db3" : "Weak pressure";
+      if (state === "apnea_suspect") return lang === "zh" ? "\u547c\u5438\u505c\u6b62" : "Breathing stopped";
       return state || "--";
     }
 
@@ -737,8 +737,8 @@
           latest && latest.motion_count !== null && latest.motion_count !== undefined ? latest.motion_count : "--";
         document.getElementById("breathActive").textContent = latest
           ? (latest.active
-            ? (currentLang === "zh" ? "有压力" : "Pressure")
-            : (currentLang === "zh" ? "无明显压力" : "No clear pressure"))
+            ? (lang === "zh" ? "\u6709\u538b\u529b" : "Pressure")
+            : (lang === "zh" ? "\u65e0\u660e\u663e\u538b\u529b" : "No clear pressure"))
           : "--";
         document.getElementById("breathActive").className = latest && latest.active ? "risk0" : "risk2";
         document.getElementById("breathApnea").textContent =
