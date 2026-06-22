@@ -361,7 +361,8 @@ rt_err_t app_breath_get_stats(rt_size_t window, app_breath_stats_t *stats)
     stats->energy_mv = energy_sum / (rt_int32_t)count;
     stats->periodic = (stats->motion_count >= APP_BREATH_PERIODIC_MIN_COUNT &&
                        stats->motion_count <= APP_BREATH_PERIODIC_MAX_COUNT) ? RT_TRUE : RT_FALSE;
-    stats->active = (stats->filtered_pp_mv >= APP_BREATH_ACTIVE_PP_MV ||
+    stats->active = (stats->pp_mv >= APP_BREATH_PRESSURE_PP_MV ||
+                     stats->filtered_pp_mv >= APP_BREATH_ACTIVE_PP_MV ||
                      stats->energy_mv >= APP_BREATH_ACTIVE_ENERGY_MV) ? RT_TRUE : RT_FALSE;
     if (stats->active && window <= APP_BREATH_ACTIVITY_WINDOW)
     {
