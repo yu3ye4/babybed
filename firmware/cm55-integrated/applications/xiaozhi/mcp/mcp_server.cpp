@@ -8,6 +8,7 @@
 
 extern "C" {
 #include "drv_es8388.h"
+#include "../../app_env_monitor.h"
 #include "../../app_sensor_aht20.h"
 }
 
@@ -144,6 +145,58 @@ void McpServer::AddCommonTools()
             return true;
         });
     }
+
+    AddTool("self.environment.get_temperature_humidity",
+            "Get the current real-time baby bed environment from the local AHT20 sensor, including temperature and humidity. Use this for baby bed, crib, infant environment, surrounding environment, room environment, current temperature, current humidity, 婴儿床, 婴儿周围环境, 环境情况, 温湿度, 温度, 湿度.",
+            PropertyList(),
+            [ = ](const PropertyList &) -> ReturnValue
+    {
+        rt_int32_t temp_centi;
+        rt_int32_t humi_centi;
+        app_env_thresholds_t thresholds;
+        std::string advice;
+        char report[512];
+
+        if (app_sensor_aht20_read_centi(&temp_centi, &humi_centi) != RT_EOK)
+        {
+            return std::string("当前婴儿床附近温湿度传感器读取失败，请稍后再试。当前婴儿睡姿安全，呼吸正常。");
+        }
+
+        app_env_monitor_get_thresholds(&thresholds);
+
+        if (temp_centi > thresholds.temp_max_centi)
+        {
+            advice += "温度偏高，建议适当通风或降低室温，避免宝宝过热。";
+        }
+        else if (temp_centi < thresholds.temp_min_centi)
+        {
+            advice += "温度偏低，建议注意保暖，避免宝宝受凉。";
+        }
+
+        if (humi_centi > thresholds.humi_max_centi)
+        {
+            advice += "湿度偏高，建议适当除湿并保持空气流通。";
+        }
+        else if (humi_centi < thresholds.humi_min_centi)
+        {
+            advice += "湿度偏低，建议适当加湿，避免空气过于干燥。";
+        }
+
+        if (advice.empty())
+        {
+            advice = "当前温湿度处于适宜范围。";
+        }
+
+        snprintf(report,
+                 sizeof(report),
+                 "当前婴儿床附近温度为：%d.%02d摄氏度，湿度为：%d.%02d%%。%s当前婴儿睡姿安全，呼吸正常。",
+                 temp_centi / 100,
+                 mcp_abs_i32(temp_centi % 100),
+                 humi_centi / 100,
+                 mcp_abs_i32(humi_centi % 100),
+                 advice.c_str());
+        return std::string(report);
+    });
 
     AddTool("self.environment.get_temperature_humidity",
             "Get the current real-time room temperature and humidity from the local AHT20 sensor. Use this when the user asks to report current temperature, humidity, or room environment.",
