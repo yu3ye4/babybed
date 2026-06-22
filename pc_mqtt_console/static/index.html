@@ -577,6 +577,17 @@
       });
     }
 
+    function percentile(values, ratio) {
+      const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+      if (!sorted.length) return NaN;
+      const index = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * ratio)));
+      return sorted[index];
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
     function drawBreath(points, latest) {
       const canvas = document.getElementById("breathCanvas");
       const rect = canvas.getBoundingClientRect();
@@ -621,14 +632,17 @@
       const filteredValues = points
         .map(p => p.filtered_mv === null || p.filtered_mv === undefined ? null : Number(p.filtered_mv))
         .filter(Number.isFinite);
-      const filteredForDraw = smoothValues(points.map(p =>
+      const filteredSmoothed = smoothValues(points.map(p =>
         p.filtered_mv === null || p.filtered_mv === undefined ? NaN : Number(p.filtered_mv)
       ), 2);
-      const allValues = rawValues.concat(filteredValues);
-      const maxAbs = Math.max(20, ...allValues.map(v => Math.abs(v)));
-      const scaleAbs = Math.ceil(maxAbs * 1.15);
+      const displayGain = 2.5;
+      const rawAbs95 = percentile(rawValues.map(v => Math.abs(v)), 0.95);
+      const filteredAbs95 = percentile(filteredValues.map(v => Math.abs(v) * displayGain), 0.95);
+      const maxAbs = Math.max(8, rawAbs95 || 0, filteredAbs95 || 0);
+      const scaleAbs = Math.ceil(maxAbs * 1.35);
       const min = -scaleAbs;
       const max = scaleAbs;
+      const valueToY = value => pad.top + plotH - ((clamp(value, min, max) - min) * plotH / (max - min));
 
       ctx.fillStyle = "#64748b";
       ctx.font = "12px Arial";
@@ -647,11 +661,12 @@
 
       ctx.strokeStyle = "#9ca3af";
       ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.55;
       ctx.beginPath();
       points.forEach((point, index) => {
         const x = pad.left + (plotW * index / (points.length - 1));
         const raw = Number(point.mv) - base;
-        const y = pad.top + plotH - ((raw - min) * plotH / (max - min));
+        const y = valueToY(raw);
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -659,18 +674,19 @@
         }
       });
       ctx.stroke();
+      ctx.globalAlpha = 1;
 
       ctx.strokeStyle = "#0f766e";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.beginPath();
       let hasFiltered = false;
       points.forEach((point, index) => {
-        const filtered = filteredForDraw[index];
+        const filtered = filteredSmoothed[index];
         if (!Number.isFinite(filtered)) {
           return;
         }
         const x = pad.left + (plotW * index / (points.length - 1));
-        const y = pad.top + plotH - ((filtered - min) * plotH / (max - min));
+        const y = valueToY(filtered * displayGain);
         if (!hasFiltered) {
           ctx.moveTo(x, y);
           hasFiltered = true;
@@ -681,7 +697,7 @@
       ctx.stroke();
 
       ctx.fillStyle = "#64748b";
-      ctx.fillText(`${points.length} pts, raw-base gray, filtered green`, pad.left, height - 8);
+      ctx.fillText(`${points.length} pts, raw gray, filtered green x${displayGain} display gain`, pad.left, height - 8);
     }
 
     async function refreshBreath() {
