@@ -348,10 +348,6 @@
             <strong id="breathMotionCount">--</strong>
           </div>
           <div class="breath-metric">
-            <div class="metric-label" data-i18n="breathActive">活动</div>
-            <strong id="breathActive">--</strong>
-          </div>
-          <div class="breath-metric">
             <div class="metric-label" data-i18n="breathApnea">无呼吸</div>
             <strong id="breathApnea">--</strong>
           </div>
@@ -447,7 +443,6 @@
         breathEnergy: "能量",
         breathPeriodic: "周期",
         breathMotionCount: "波动数",
-        breathActive: "活动",
         breathApnea: "无呼吸",
         breathState: "状态"
       },
@@ -494,7 +489,6 @@
         breathEnergy: "Energy",
         breathPeriodic: "Periodic",
         breathMotionCount: "Motion Count",
-        breathActive: "Active",
         breathApnea: "Apnea",
         breathState: "State"
       }
@@ -735,12 +729,6 @@
         document.getElementById("breathPeriodic").className = latest && latest.periodic ? "risk0" : "risk1";
         document.getElementById("breathMotionCount").textContent =
           latest && latest.motion_count !== null && latest.motion_count !== undefined ? latest.motion_count : "--";
-        document.getElementById("breathActive").textContent = latest
-          ? (latest.active
-            ? (lang === "zh" ? "\u6709\u538b\u529b" : "Pressure")
-            : (lang === "zh" ? "\u65e0\u660e\u663e\u538b\u529b" : "No clear pressure"))
-          : "--";
-        document.getElementById("breathActive").className = latest && latest.active ? "risk0" : "risk2";
         document.getElementById("breathApnea").textContent =
           latest && latest.apnea_seconds !== null && latest.apnea_seconds !== undefined ? `${latest.apnea_seconds}s` : "--";
         document.getElementById("breathState").textContent = latest && latest.state ? breathStateLabel(latest.state) : "--";
