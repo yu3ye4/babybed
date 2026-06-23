@@ -20,6 +20,11 @@
 #include "app_log.h"
 #include "app_alert.h"
 
+extern "C" {
+#include "app_env_monitor.h"
+#include "app_sensor_aht20.h"
+}
+
 #define DBG_TAG "xz.ws"
 #define DBG_LVL DBG_INFO
 #include <rtdbg.h>
@@ -36,6 +41,7 @@
 #define BUTTON_DEBOUNCE_MS 20
 #define WAKEWORD_INIT_FLAG_RESET 0
 #define TTS_SENTENCE_TIMEOUT_MS 6000
+#define LOCAL_ENV_TTS_SUPPRESS_MS 15000
 
 /* Global application state */
 xiaozhi_app_t g_app =
@@ -61,6 +67,8 @@ xiaozhi_app_t g_app =
 #include "iot/iot_c_api.h"
 #include "mcp/mcp_api.h"
 
+static rt_tick_t g_local_env_tts_suppress_until = 0;
+
 static const char *xz_json_string_or_empty(cJSON *root, const char *name)
 {
     cJSON *item = cJSON_GetObjectItem(root, name);
@@ -71,6 +79,152 @@ static const char *xz_json_string_or_empty(cJSON *root, const char *name)
     }
 
     return "";
+}
+
+static rt_int32_t xz_abs_i32(rt_int32_t value)
+{
+    return value < 0 ? -value : value;
+}
+
+static void xz_append_text(char *buffer, size_t buffer_size, const char *text)
+{
+    size_t used;
+
+    if (buffer == RT_NULL || buffer_size == 0 || text == RT_NULL)
+    {
+        return;
+    }
+
+    used = strlen(buffer);
+    if (used >= buffer_size - 1)
+    {
+        return;
+    }
+
+    strncat(buffer, text, buffer_size - used - 1);
+}
+
+static rt_bool_t xz_is_local_env_request(const char *text)
+{
+    static const char *keywords[] = {
+        "婴儿床",
+        "周围环境",
+        "环境情况",
+        "环境状况",
+        "温湿度",
+        "温度",
+        "湿度",
+    };
+
+    if (text == RT_NULL || text[0] == '\0')
+    {
+        return RT_FALSE;
+    }
+
+    for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i)
+    {
+        if (strstr(text, keywords[i]) != RT_NULL)
+        {
+            return RT_TRUE;
+        }
+    }
+
+    return RT_FALSE;
+}
+
+static void xz_build_local_env_report(char *report, size_t report_size)
+{
+    rt_int32_t temp_centi;
+    rt_int32_t humi_centi;
+    app_env_thresholds_t thresholds;
+    char advice[256] = {0};
+
+    if (report == RT_NULL || report_size == 0)
+    {
+        return;
+    }
+
+    if (app_sensor_aht20_read_centi(&temp_centi, &humi_centi) != RT_EOK)
+    {
+        rt_snprintf(report,
+                    report_size,
+                    "当前婴儿床附近温湿度传感器读取失败，请稍后再试。当前婴儿睡姿安全，呼吸正常。");
+        return;
+    }
+
+    app_env_monitor_get_thresholds(&thresholds);
+
+    if (temp_centi > thresholds.temp_max_centi)
+    {
+        xz_append_text(advice, sizeof(advice), "温度偏高，建议适当通风或降低室温，避免宝宝过热。");
+    }
+    else if (temp_centi < thresholds.temp_min_centi)
+    {
+        xz_append_text(advice, sizeof(advice), "温度偏低，建议注意保暖，避免宝宝受凉。");
+    }
+
+    if (humi_centi > thresholds.humi_max_centi)
+    {
+        xz_append_text(advice, sizeof(advice), "湿度偏高，建议适当除湿并保持空气流通。");
+    }
+    else if (humi_centi < thresholds.humi_min_centi)
+    {
+        xz_append_text(advice, sizeof(advice), "湿度偏低，建议适当加湿，避免空气过于干燥。");
+    }
+
+    if (advice[0] == '\0')
+    {
+        xz_append_text(advice, sizeof(advice), "当前温湿度处于适宜范围。");
+    }
+
+    rt_snprintf(report,
+                report_size,
+                "当前婴儿床附近温度为：%d.%02d摄氏度，湿度为：%d.%02d%%。%s当前婴儿睡姿安全，呼吸正常。",
+                temp_centi / 100,
+                xz_abs_i32(temp_centi % 100),
+                humi_centi / 100,
+                xz_abs_i32(humi_centi % 100),
+                advice);
+}
+
+static void xz_suppress_cloud_tts_for_local_env(void)
+{
+    g_local_env_tts_suppress_until = rt_tick_get() + rt_tick_from_millisecond(LOCAL_ENV_TTS_SUPPRESS_MS);
+}
+
+static rt_bool_t xz_is_local_env_tts_suppressed(void)
+{
+    rt_tick_t now;
+
+    if (g_local_env_tts_suppress_until == 0)
+    {
+        return RT_FALSE;
+    }
+
+    now = rt_tick_get();
+    if ((g_local_env_tts_suppress_until - now) < RT_TICK_MAX / 2)
+    {
+        return RT_TRUE;
+    }
+
+    g_local_env_tts_suppress_until = 0;
+    return RT_FALSE;
+}
+
+static void xz_handle_local_env_request(const char *text)
+{
+    char report[512] = {0};
+
+    if (!xz_is_local_env_request(text))
+    {
+        return;
+    }
+
+    xz_build_local_env_report(report, sizeof(report));
+    xz_suppress_cloud_tts_for_local_env();
+    xz_speaker(0);
+    APP_LOG("xz", "local env report: %s", report);
+    xiaozhi_ui_chat_output(report);
 }
 
 extern "C" int xiaozhi_is_connected(void)
@@ -806,6 +960,10 @@ err_t my_wsapp_fn(int code, char *buf, size_t len)
         Message_handle((const uint8_t *)buf, len);
         break;
     case WS_DATA:
+        if (xz_is_local_env_tts_suppressed())
+        {
+            break;
+        }
         xz_audio_downlink((uint8_t *)buf, len, NULL, 0);
         break;
     default:
@@ -1273,9 +1431,17 @@ void Message_handle(const uint8_t *data, uint16_t len)
     }
     else if (strcmp(type, "tts") == 0)
     {
+        rt_bool_t suppress_local_env_tts = xz_is_local_env_tts_suppressed();
         char *state = my_json_string(root, "state");
         if (strcmp(state, "start") == 0)
         {
+            if (suppress_local_env_tts)
+            {
+                APP_LOG("xz", "suppress cloud tts start for local env report");
+                xz_speaker(0);
+            }
+            else
+            {
             if (g_app.state == kDeviceStateIdle || g_app.state == kDeviceStateListening)
             {
                 /* Ensure mic off before TTS starts */
@@ -1309,6 +1475,7 @@ void Message_handle(const uint8_t *data, uint16_t len)
             else
             {
                 LOG_D("Already in Speaking state, ignoring duplicate start\n");
+            }
             }
         }
         else if (strcmp(state, "stop") == 0)
@@ -1392,12 +1559,25 @@ void Message_handle(const uint8_t *data, uint16_t len)
         else if (strcmp(state, "sentence_start") == 0)
         {
             char *text = (char *)xz_json_string_or_empty(root, "text");
+            if (suppress_local_env_tts)
+            {
+                APP_LOG("xz", "suppress cloud tts: %s", text);
+            }
+            else
+            {
             APP_LOG("xz", "tts: %s", text);
             app_event_post_xiaozhi_tts("sentence_start", text);
             xiaozhi_ui_chat_output(text);
+            }
         }
         else if (strcmp(state, "sentence_end") == 0)
         {
+            if (suppress_local_env_tts)
+            {
+                LOG_D("Suppressed cloud TTS sentence end for local env report");
+            }
+            else
+            {
             /* sentence_end indicates the end of a sentence */
             app_event_post_xiaozhi_tts("sentence_end", "");
             LOG_D("TTS sentence ended");
@@ -1441,6 +1621,7 @@ void Message_handle(const uint8_t *data, uint16_t len)
                     }
                 }
             }
+            }
         }
         else
         {
@@ -1458,6 +1639,7 @@ void Message_handle(const uint8_t *data, uint16_t len)
         const char *text = xz_json_string_or_empty(root, "text");
         APP_LOG("xz", "stt: %s", text);
         app_event_post_xiaozhi_stt(text);
+        xz_handle_local_env_request(text);
     }
     else if (strcmp(type, "iot") == 0)
     {
