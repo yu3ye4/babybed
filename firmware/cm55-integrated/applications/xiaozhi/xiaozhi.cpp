@@ -41,7 +41,7 @@ extern "C" {
 #define BUTTON_DEBOUNCE_MS 20
 #define WAKEWORD_INIT_FLAG_RESET 0
 #define TTS_SENTENCE_TIMEOUT_MS 6000
-#define LOCAL_ENV_TTS_SUPPRESS_MS 15000
+#define LOCAL_ENV_TTS_SUPPRESS_MS 1200
 
 /* Global application state */
 xiaozhi_app_t g_app =
@@ -211,6 +211,142 @@ static rt_bool_t xz_is_local_env_tts_suppressed(void)
     return RT_FALSE;
 }
 
+static void xz_json_escape(const char *input, char *output, size_t output_size)
+{
+    size_t out = 0;
+
+    if (input == RT_NULL || output == RT_NULL || output_size == 0)
+    {
+        return;
+    }
+
+    while (*input != '\0' && out + 1 < output_size)
+    {
+        if ((*input == '"' || *input == '\\') && out + 2 < output_size)
+        {
+            output[out++] = '\\';
+            output[out++] = *input++;
+        }
+        else if (*input == '\r' || *input == '\n')
+        {
+            input++;
+        }
+        else
+        {
+            output[out++] = *input++;
+        }
+    }
+
+    output[out] = '\0';
+}
+
+static rt_bool_t xz_ws_send_text_json(const char *message)
+{
+    err_t result;
+
+    if (message == RT_NULL || !g_app.ws.is_connected || g_app.ws.ws_write_mutex == RT_NULL)
+    {
+        return RT_FALSE;
+    }
+
+    if (rt_mutex_take(g_app.ws.ws_write_mutex, rt_tick_from_millisecond(1000)) != RT_EOK)
+    {
+        LOG_W("WebSocket write busy, cannot send local env message");
+        return RT_FALSE;
+    }
+
+    result = wsock_write(&g_app.ws.clnt, message, strlen(message), OPCODE_TEXT);
+    rt_mutex_release(g_app.ws.ws_write_mutex);
+
+    if (result != ERR_OK)
+    {
+        LOG_E("Failed to send local env message: %d", result);
+        if (result == ERR_CLSD || result == ERR_RST)
+        {
+            g_app.ws.is_connected = 0;
+        }
+        return RT_FALSE;
+    }
+
+    return RT_TRUE;
+}
+
+static void xz_ws_send_abort_for_local_env(void)
+{
+    char message[160];
+
+    rt_snprintf(message,
+                sizeof(message),
+                "{\"session_id\":\"%s\",\"type\":\"abort\",\"reason\":\"wake_word_detected\"}",
+                g_app.ws.session_id);
+    xz_ws_send_text_json(message);
+}
+
+static void xz_ws_send_local_env_detect_text(const char *report)
+{
+    char escaped[640];
+    char message[900];
+
+    xz_json_escape(report, escaped, sizeof(escaped));
+    rt_snprintf(message,
+                sizeof(message),
+                "{\"session_id\":\"%s\",\"type\":\"listen\",\"state\":\"detect\",\"text\":\"请直接朗读以下内容，不要查询天气：%s\"}",
+                g_app.ws.session_id,
+                escaped);
+
+    if (xz_ws_send_text_json(message))
+    {
+        APP_LOG("xz", "local env report sent to cloud tts");
+    }
+}
+
+static void xz_local_env_speak_thread(void *parameter)
+{
+    char *report = (char *)parameter;
+
+    xz_ws_send_abort_for_local_env();
+    rt_thread_mdelay(300);
+    g_local_env_tts_suppress_until = 0;
+    xz_ws_send_local_env_detect_text(report);
+    rt_free(report);
+}
+
+static void xz_request_local_env_cloud_tts(const char *report)
+{
+    size_t len;
+    char *report_copy;
+    rt_thread_t tid;
+
+    if (report == RT_NULL || report[0] == '\0')
+    {
+        return;
+    }
+
+    len = strlen(report) + 1;
+    report_copy = (char *)rt_malloc(len);
+    if (report_copy == RT_NULL)
+    {
+        LOG_W("No memory for local env cloud tts report");
+        return;
+    }
+    memcpy(report_copy, report, len);
+
+    tid = rt_thread_create("envtts",
+                           xz_local_env_speak_thread,
+                           report_copy,
+                           4096,
+                           THREAD_PRIORITY,
+                           10);
+    if (tid == RT_NULL)
+    {
+        LOG_W("Failed to create local env cloud tts thread");
+        rt_free(report_copy);
+        return;
+    }
+
+    rt_thread_startup(tid);
+}
+
 static void xz_handle_local_env_request(const char *text)
 {
     char report[512] = {0};
@@ -225,6 +361,7 @@ static void xz_handle_local_env_request(const char *text)
     xz_speaker(0);
     APP_LOG("xz", "local env report: %s", report);
     xiaozhi_ui_chat_output(report);
+    xz_request_local_env_cloud_tts(report);
 }
 
 extern "C" int xiaozhi_is_connected(void)
