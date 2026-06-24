@@ -534,8 +534,8 @@
     }
 
     function updateCryAlert(serverCry, latest, data) {
-      if (serverCry && serverCry.active) {
-        cryAlertUntil = Number(serverCry.until || 0) * 1000;
+      if (serverCry) {
+        cryAlertUntil = serverCry.active ? Number(serverCry.until || 0) * 1000 : 0;
         cryLastConfidence = serverCry.confidence !== undefined ? serverCry.confidence : "--";
       }
 

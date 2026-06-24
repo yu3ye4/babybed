@@ -160,6 +160,15 @@ def update_cry_alert(record: dict[str, Any]) -> None:
         data = {}
 
     if (
+        "event=baby_crying_stopped" in raw
+        or "reason=baby_crying_stopped" in raw
+        or data.get("event") == "baby_crying_stopped"
+        or data.get("reason") == "baby_crying_stopped"
+        or data.get("crying") == 0
+    ):
+        cry_alert_until = 0.0
+        cry_alert_confidence = "--"
+    elif (
         "event=baby_crying" in raw
         or "reason=baby_crying" in raw
         or data.get("event") == "baby_crying"

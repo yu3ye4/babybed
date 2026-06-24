@@ -18,6 +18,7 @@ static rt_sem_t g_alert_blink_sem = RT_NULL;
 static rt_thread_t g_alert_blink_thread = RT_NULL;
 static rt_bool_t g_alert_initialized = RT_FALSE;
 static rt_bool_t g_cry_pending = RT_FALSE;
+static rt_bool_t g_cry_stop_pending = RT_FALSE;
 static rt_bool_t g_cry_has_last = RT_FALSE;
 static rt_tick_t g_cry_last_tick = 0;
 static rt_int32_t g_cry_confidence_centi = 0;
@@ -125,6 +126,7 @@ rt_err_t app_alert_baby_cry_start(float confidence)
     now = rt_tick_get();
 
     rt_mutex_take(g_alert_lock, RT_WAITING_FOREVER);
+    g_cry_stop_pending = RT_FALSE;
     if (!g_cry_has_last ||
         (now - g_cry_last_tick) >= rt_tick_from_millisecond(APP_ALERT_CRY_COOLDOWN_MS))
     {
@@ -160,8 +162,11 @@ rt_err_t app_alert_baby_cry_stop(void)
         return RT_EOK;
     }
 
-    APP_LOG("alert", "baby crying stopped");
+    rt_mutex_take(g_alert_lock, RT_WAITING_FOREVER);
+    g_cry_stop_pending = RT_TRUE;
+    rt_mutex_release(g_alert_lock);
 
+    APP_LOG("alert", "baby crying stopped");
     return RT_EOK;
 }
 
@@ -185,6 +190,22 @@ rt_bool_t app_alert_get_baby_cry(rt_int32_t *confidence_centi)
     return pending;
 }
 
+rt_bool_t app_alert_get_baby_cry_stop(void)
+{
+    rt_bool_t pending;
+
+    if (!g_alert_initialized)
+    {
+        return RT_FALSE;
+    }
+
+    rt_mutex_take(g_alert_lock, RT_WAITING_FOREVER);
+    pending = g_cry_stop_pending;
+    rt_mutex_release(g_alert_lock);
+
+    return pending;
+}
+
 void app_alert_clear_baby_cry(void)
 {
     if (!g_alert_initialized)
@@ -194,5 +215,17 @@ void app_alert_clear_baby_cry(void)
 
     rt_mutex_take(g_alert_lock, RT_WAITING_FOREVER);
     g_cry_pending = RT_FALSE;
+    rt_mutex_release(g_alert_lock);
+}
+
+void app_alert_clear_baby_cry_stop(void)
+{
+    if (!g_alert_initialized)
+    {
+        return;
+    }
+
+    rt_mutex_take(g_alert_lock, RT_WAITING_FOREVER);
+    g_cry_stop_pending = RT_FALSE;
     rt_mutex_release(g_alert_lock);
 }

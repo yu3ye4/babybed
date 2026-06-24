@@ -503,7 +503,24 @@ static rt_bool_t mqtt_publish_cry_alert(void)
 
     if (!app_alert_get_baby_cry(&confidence_centi))
     {
-        return RT_FALSE;
+        if (!app_alert_get_baby_cry_stop())
+        {
+            return RT_FALSE;
+        }
+
+        rt_snprintf(alert_buf, sizeof(alert_buf),
+                    "event=baby_crying_stopped,risk=0,score=0,reason=baby_crying_stopped,crying=0,message=baby_crying_stopped");
+
+        ret = mqtt_raw_publish(APP_MQTT_TOPIC_TELEMETRY, alert_buf);
+        if (ret != PAHO_SUCCESS)
+        {
+            APP_LOG("mqtt", "publish cry stop fail: %d raw=%d", ret, g_mqtt_raw_last_error);
+            return RT_TRUE;
+        }
+
+        app_alert_clear_baby_cry_stop();
+        APP_LOG("mqtt", "publish cry stop ok");
+        return RT_TRUE;
     }
 
     if (app_sensor_aht20_read_centi(&temp_centi, &humi_centi) == RT_EOK)
