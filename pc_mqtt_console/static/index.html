@@ -533,12 +533,16 @@
       return "risk0";
     }
 
-    function updateCryAlert(latest, data) {
+    function updateCryAlert(serverCry, latest, data) {
+      if (serverCry && serverCry.active) {
+        cryAlertUntil = Number(serverCry.until || 0) * 1000;
+        cryLastConfidence = serverCry.confidence !== undefined ? serverCry.confidence : "--";
+      }
+
       const raw = latest && latest.raw ? String(latest.raw) : "";
       const isCurrentCry =
         raw.includes("event=baby_crying") ||
-        raw.includes("reason=baby_crying") ||
-        value(data, "reason") === "baby_crying";
+        raw.includes("reason=baby_crying");
 
       if (isCurrentCry) {
         cryAlertUntil = Date.now() + 60000;
@@ -805,7 +809,7 @@
       document.getElementById("wetDetail").textContent =
         `score ${value(data, "wet_score")} delta ${value(data, "wet_delta_humi")}% ${value(data, "wet_seconds")}s`;
       document.getElementById("wetReason").textContent = `reason ${value(data, "wet_reason")}`;
-      updateCryAlert(latest, data);
+      updateCryAlert(status.cry_alert, latest, data);
 
       const preview = document.getElementById("visionPreview");
       const previewUrl = status.vision_preview_url || "";

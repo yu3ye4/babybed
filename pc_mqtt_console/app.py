@@ -48,6 +48,8 @@ mqtt_connected = False
 mqtt_client: mqtt.Client | None = None
 breath_latest: dict[str, Any] | None = None
 telemetry_latest: dict[str, Any] | None = None
+cry_alert_until = 0.0
+cry_alert_confidence: Any = "--"
 analysis_cache: dict[str, Any] = {
     "mode": "none",
     "text": "暂无分析结果",
@@ -149,12 +151,31 @@ def merge_telemetry_latest(
     return merged
 
 
+def update_cry_alert(record: dict[str, Any]) -> None:
+    global cry_alert_until, cry_alert_confidence
+
+    raw = str(record.get("raw", ""))
+    data = record.get("data", {})
+    if not isinstance(data, dict):
+        data = {}
+
+    if (
+        "event=baby_crying" in raw
+        or "reason=baby_crying" in raw
+        or data.get("event") == "baby_crying"
+        or data.get("reason") == "baby_crying"
+    ):
+        cry_alert_until = time.time() + 60.0
+        cry_alert_confidence = data.get("confidence", "--")
+
+
 def append_history(record: dict[str, Any]) -> None:
     global telemetry_latest
 
     line = json.dumps(record, ensure_ascii=False)
     with state_lock:
         history.append(record)
+        update_cry_alert(record)
         telemetry_latest = merge_telemetry_latest(telemetry_latest, record)
     with HISTORY_FILE.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
@@ -520,6 +541,13 @@ async def status() -> dict[str, Any]:
     with state_lock:
         latest = telemetry_latest
         count = len(history)
+        now = time.time()
+        cry_alert = {
+            "active": now < cry_alert_until,
+            "until": cry_alert_until,
+            "remaining": max(0, int(cry_alert_until - now)),
+            "confidence": cry_alert_confidence,
+        }
     return {
         "mqtt_connected": mqtt_connected,
         "mqtt_host": MQTT_HOST,
@@ -530,6 +558,7 @@ async def status() -> dict[str, Any]:
         "vision_preview_url": VISION_PREVIEW_URL,
         "history_count": count,
         "latest": latest,
+        "cry_alert": cry_alert,
         "analysis": analysis_cache,
     }
 
