@@ -43,6 +43,7 @@ extern "C" {
 #define WAKEWORD_INIT_FLAG_RESET 0
 #define TTS_SENTENCE_TIMEOUT_MS 6000
 #define LOCAL_ENV_TTS_SUPPRESS_MS 1200
+#define LULLABY_TTS_SUPPRESS_MS 35000
 
 /* Global application state */
 xiaozhi_app_t g_app =
@@ -69,6 +70,7 @@ xiaozhi_app_t g_app =
 #include "mcp/mcp_api.h"
 
 static rt_tick_t g_local_env_tts_suppress_until = 0;
+static rt_tick_t g_lullaby_tts_suppress_until = 0;
 
 static const char *xz_json_string_or_empty(cJSON *root, const char *name)
 {
@@ -242,6 +244,30 @@ static rt_bool_t xz_is_local_env_tts_suppressed(void)
     return RT_FALSE;
 }
 
+static void xz_suppress_cloud_tts_for_lullaby(void)
+{
+    g_lullaby_tts_suppress_until = rt_tick_get() + rt_tick_from_millisecond(LULLABY_TTS_SUPPRESS_MS);
+}
+
+static rt_bool_t xz_is_lullaby_tts_suppressed(void)
+{
+    rt_tick_t now;
+
+    if (g_lullaby_tts_suppress_until == 0)
+    {
+        return RT_FALSE;
+    }
+
+    now = rt_tick_get();
+    if ((g_lullaby_tts_suppress_until - now) < RT_TICK_MAX / 2)
+    {
+        return RT_TRUE;
+    }
+
+    g_lullaby_tts_suppress_until = 0;
+    return RT_FALSE;
+}
+
 static void xz_handle_local_env_request(const char *text)
 {
     char report[512] = {0};
@@ -266,6 +292,7 @@ static rt_bool_t xz_handle_local_lullaby_request(const char *text)
     }
 
     xz_suppress_cloud_tts_for_local_env();
+    xz_suppress_cloud_tts_for_lullaby();
     xz_speaker(0);
     wavplayer_stop();
 
@@ -1016,7 +1043,7 @@ err_t my_wsapp_fn(int code, char *buf, size_t len)
         Message_handle((const uint8_t *)buf, len);
         break;
     case WS_DATA:
-        if (xz_is_local_env_tts_suppressed())
+        if (xz_is_local_env_tts_suppressed() || xz_is_lullaby_tts_suppressed())
         {
             break;
         }
@@ -1488,10 +1515,16 @@ void Message_handle(const uint8_t *data, uint16_t len)
     else if (strcmp(type, "tts") == 0)
     {
         rt_bool_t suppress_local_env_tts = xz_is_local_env_tts_suppressed();
+        rt_bool_t suppress_lullaby_tts = xz_is_lullaby_tts_suppressed();
         char *state = my_json_string(root, "state");
         if (strcmp(state, "start") == 0)
         {
-            if (suppress_local_env_tts)
+            if (suppress_lullaby_tts)
+            {
+                APP_LOG("xz", "suppress cloud tts start for local lullaby");
+                xz_speaker(0);
+            }
+            else if (suppress_local_env_tts)
             {
                 APP_LOG("xz", "suppress cloud tts start for local env report");
                 xz_speaker(0);
@@ -1615,7 +1648,11 @@ void Message_handle(const uint8_t *data, uint16_t len)
         else if (strcmp(state, "sentence_start") == 0)
         {
             char *text = (char *)xz_json_string_or_empty(root, "text");
-            if (suppress_local_env_tts)
+            if (suppress_lullaby_tts)
+            {
+                APP_LOG("xz", "suppress cloud tts for local lullaby: %s", text);
+            }
+            else if (suppress_local_env_tts)
             {
                 APP_LOG("xz", "suppress cloud tts: %s", text);
             }
@@ -1628,7 +1665,11 @@ void Message_handle(const uint8_t *data, uint16_t len)
         }
         else if (strcmp(state, "sentence_end") == 0)
         {
-            if (suppress_local_env_tts)
+            if (suppress_lullaby_tts)
+            {
+                LOG_D("Suppressed cloud TTS sentence end for local lullaby");
+            }
+            else if (suppress_local_env_tts)
             {
                 LOG_D("Suppressed cloud TTS sentence end for local env report");
             }
@@ -1694,9 +1735,9 @@ void Message_handle(const uint8_t *data, uint16_t len)
     {
         const char *text = xz_json_string_or_empty(root, "text");
         APP_LOG("xz", "stt: %s", text);
-        app_event_post_xiaozhi_stt(text);
         if (!xz_handle_local_lullaby_request(text))
         {
+            app_event_post_xiaozhi_stt(text);
             xz_handle_local_env_request(text);
         }
     }
