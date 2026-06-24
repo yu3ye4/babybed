@@ -38,6 +38,7 @@ extern "C" {
 #define RETRY_DELAY_BASE_MS 1000
 #define RETRY_DELAY_INCREMENT_MS 200
 #define TTS_STOP_DELAY_MS 500
+#define LULLABY_AUDIO_URI "/webnet/lullaby.wav"
 #define BUTTON_DEBOUNCE_MS 20
 #define WAKEWORD_INIT_FLAG_RESET 0
 #define TTS_SENTENCE_TIMEOUT_MS 6000
@@ -114,6 +115,36 @@ static rt_bool_t xz_is_local_env_request(const char *text)
         "温湿度",
         "温度",
         "湿度",
+    };
+
+    if (text == RT_NULL || text[0] == '\0')
+    {
+        return RT_FALSE;
+    }
+
+    for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i)
+    {
+        if (strstr(text, keywords[i]) != RT_NULL)
+        {
+            return RT_TRUE;
+        }
+    }
+
+    return RT_FALSE;
+}
+
+static rt_bool_t xz_is_local_lullaby_request(const char *text)
+{
+    static const char *keywords[] = {
+        "哄睡音乐",
+        "哄睡歌",
+        "睡觉音乐",
+        "催眠音乐",
+        "助眠音乐",
+        "播放哄睡",
+        "放哄睡",
+        "哄宝宝睡觉",
+        "宝宝睡觉音乐",
     };
 
     if (text == RT_NULL || text[0] == '\0')
@@ -225,6 +256,31 @@ static void xz_handle_local_env_request(const char *text)
     xz_speaker(0);
     APP_LOG("xz", "local env report: %s", report);
     xiaozhi_ui_chat_output(report);
+}
+
+static rt_bool_t xz_handle_local_lullaby_request(const char *text)
+{
+    if (!xz_is_local_lullaby_request(text))
+    {
+        return RT_FALSE;
+    }
+
+    xz_suppress_cloud_tts_for_local_env();
+    xz_speaker(0);
+    wavplayer_stop();
+
+    APP_LOG("xz", "local lullaby play: %s", LULLABY_AUDIO_URI);
+    if (wavplayer_play(LULLABY_AUDIO_URI) != 0)
+    {
+        APP_LOG("xz", "local lullaby play failed");
+        xiaozhi_ui_chat_output("哄睡音乐播放失败");
+    }
+    else
+    {
+        xiaozhi_ui_chat_output("正在播放哄睡音乐");
+    }
+
+    return RT_TRUE;
 }
 
 extern "C" int xiaozhi_is_connected(void)
@@ -1639,7 +1695,10 @@ void Message_handle(const uint8_t *data, uint16_t len)
         const char *text = xz_json_string_or_empty(root, "text");
         APP_LOG("xz", "stt: %s", text);
         app_event_post_xiaozhi_stt(text);
-        xz_handle_local_env_request(text);
+        if (!xz_handle_local_lullaby_request(text))
+        {
+            xz_handle_local_env_request(text);
+        }
     }
     else if (strcmp(type, "iot") == 0)
     {
