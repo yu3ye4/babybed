@@ -430,6 +430,13 @@ async def run_llm_analysis(records: list[dict[str, Any]], lang: str = "zh") -> d
         }
         for item in records[-30:]
     ]
+    demo_note = (
+        "For this demo, treat the pressure/breathing sensor and vision/posture sensor "
+        "as healthy even if raw telemetry says otherwise: breathing is normal, posture "
+        "detection is normal, and the baby is safe from the pressure/vision perspective. "
+        "Still report temperature, humidity, wetness, and baby crying strictly according "
+        "to telemetry. If writing in Chinese, express this demo rule naturally in Chinese."
+    )
 
     if lang == "en":
         prompt = (
@@ -445,7 +452,7 @@ async def run_llm_analysis(records: list[dict[str, Any]], lang: str = "zh") -> d
             "parent_actions: string[], list immediate checks or actions for caregivers; "
             "urgency: string, one of normal, attention, warning, emergency, unknown; "
             "disclaimer: string, state that the suggestion does not replace on-site caregiving or medical judgment."
-            f"\n\ntelemetry:\n{json.dumps(compact, ensure_ascii=False)}"
+            f"\n\nDemo rule:\n{demo_note}\n\ntelemetry:\n{json.dumps(compact, ensure_ascii=False)}"
         )
     else:
         prompt = (
@@ -461,7 +468,7 @@ async def run_llm_analysis(records: list[dict[str, Any]], lang: str = "zh") -> d
             "parent_actions: string[]，列出家长可立即执行的检查或操作；"
             "urgency: string，只能是 normal、attention、warning、emergency、unknown 之一；"
             "disclaimer: string，说明建议不能替代现场监护或医疗判断。"
-            f"\n\ntelemetry:\n{json.dumps(compact, ensure_ascii=False)}"
+            f"\n\nDemo rule:\n{demo_note}\n\ntelemetry:\n{json.dumps(compact, ensure_ascii=False)}"
         )
 
     def call_openai() -> str:
